@@ -21,6 +21,7 @@ export default function ProfileStack() {
           fontWeight: '600',
         },
         headerBackTitleVisible: false,
+        headerBackTitle: '',
         headerShadowVisible: false,
       }}
     >
@@ -35,7 +36,6 @@ export default function ProfileStack() {
         options={{ 
           headerShown: true, 
           title: 'Followed Stocks',
-          headerBackTitle: 'Profile'
         }}
       />
       <Stack.Screen 
@@ -44,7 +44,6 @@ export default function ProfileStack() {
         options={{ 
           headerShown: true, 
           title: 'Followed Sectors',
-          headerBackTitle: 'Profile'
         }}
       />
     </Stack.Navigator>

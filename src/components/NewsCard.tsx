@@ -42,7 +42,7 @@ export default function NewsCard({ item }: any) {
     <Pressable
       onPress={() => navigation.navigate('NewsDetail', { item })}
     >
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <View style={styles.headerRow}>
           <View style={styles.leftHeader}>
             <View style={[styles.tagBadge, { backgroundColor: getTagColor(item.tag) }]}>
@@ -76,9 +76,9 @@ export default function NewsCard({ item }: any) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'transparent',
-    paddingBottom: spacing.lg,
-    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
   },
   headerRow: {
     flexDirection: 'row',

@@ -22,6 +22,7 @@ export default function SavedStack() {
           fontWeight: '600',
         },
         headerBackTitleVisible: false,
+        headerBackTitle: '',
         headerShadowVisible: false,
       }}
     >
@@ -38,12 +39,12 @@ export default function SavedStack() {
       <Stack.Screen 
         name="StockDetail" 
         component={StockDetailScreen}
-        options={{ title: 'Stock Detail' }}
+        options={{ title: 'Stock History' }}
       />
       <Stack.Screen 
         name="SectorDetail" 
         component={SectorDetailScreen}
-        options={{ title: 'Sector Detail' }}
+        options={{ title: 'Sector History' }}
       />
     </Stack.Navigator>
   );

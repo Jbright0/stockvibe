@@ -37,14 +37,16 @@ export default function NewsDetailScreen() {
     return tag === 'Opportunity' ? '#FFFFFF' : theme.colors.textPrimary;
   };
 
-  const formatDate = () => {
-    const date = new Date();
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
-                    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
+  const getRiskBoxBg = () => {
+    return theme.colors.background === darkTheme.colors.background 
+      ? 'rgba(212, 165, 116, 0.15)' // risk color with opacity for dark mode
+      : '#FFF5E6'; // light orange for light mode
+  };
+
+  const getOpportunityBoxBg = () => {
+    return theme.colors.background === darkTheme.colors.background 
+      ? 'rgba(107, 163, 232, 0.15)' // oppty color with opacity for dark mode
+      : '#E6F2FF'; // light blue for light mode
   };
 
   const handleBookmarkPress = () => {
@@ -52,17 +54,49 @@ export default function NewsDetailScreen() {
     setIsBookmarked(newBookmarkState);
   };
 
-  // Mock data for impact analysis and key facts
-  const impactAnalysis = "While revenue met expectations, forward guidance suggests a temporary cyclical downturn in EUV lithography demand. Long-term thesis remains intact based on order backlog.";
+  // Mock data for the new sections
+  const originalArticleSummary = item.summary || "Taiwan Semiconductor Manufacturing Co. reported a slight uptick in output for the third consecutive quarter, signaling a potential thaw in the global chip shortage that has constrained supply chains across multiple industries.";
   
-  const keyFacts = [
-    "Net bookings declined 42% YoY, signalling caution from major chip manufacturers.",
-    "Gross margin stabilized at 51.9%, slightly beating consensus estimates despite lower volume.",
-    "Management reiterates 2025 financial targets, expecting a recovery in late 2024."
+  const whyThisMatters = [
+    "Automotive production halts may decrease in Q3, allowing legacy manufacturers to clear backlog orders faster than anticipated.",
+    "Inventory buildup risks represent a strategic shift from shortage management to potential oversupply in consumer electronics segments."
   ];
 
-  // Related assets - using the stock and sector from item
-  const relatedAssets = [item.stock, 'TSM', item.sector];
+  const impactScope = [
+    { symbol: item.stock, name: item.stock, impact: item.tag },
+    { symbol: 'TSM', name: 'Taiwan Semiconductor', impact: 'Neutral' }
+  ];
+
+  const risks = [
+    "Legacy node shortages persist, potentially stalling lower-end auto production lines through Q4.",
+    "Inflationary pressure on raw wafers could offset revenue gains from volume recovery."
+  ];
+
+  const opportunities = [
+    "Accelerated backlog clearance improves quarterly revenue visibility for major foundries.",
+    "Inventory normalization allows for strategic reallocation to high-margin AI chip segments."
+  ];
+
+  const signal = "Mixed Signals";
+  const signalDescription = "Short-term supply relief balanced against long-term demand opacity.";
+
+  const pestleCards = [
+    { category: 'Economic', icon: '🏢', text: 'Supply Easing' },
+    { category: 'Tech', icon: '🔬', text: 'Yield Boost' },
+    { category: 'Political', icon: '🌐', text: 'Trade Policy' }
+  ];
+
+  // Get secondary tag based on sector
+  const getSecondaryTag = () => {
+    const tagMap: { [key: string]: string } = {
+      'Technology': 'HARDWARE',
+      'Finance': 'BANKING',
+      'Energy': 'OIL',
+      'Healthcare': 'PHARMA',
+      'Automotive': 'AUTO'
+    };
+    return tagMap[item.sector] || 'INDUSTRY';
+  };
 
   return (
     <>
@@ -72,88 +106,160 @@ export default function NewsDetailScreen() {
       )}
       <Screen>
         <ScrollView 
-        style={[styles.scrollView, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Date and read time with bookmark */}
-        <View style={styles.metaRow}>
-          <Text style={[styles.meta, { color: theme.colors.textSecondary }]}>{formatDate()} • 2 MIN READ</Text>
-          <Pressable onPress={handleBookmarkPress} style={styles.bookmarkButton}>
-            <BookmarkIcon 
-              color={isBookmarked ? theme.colors.primary : theme.colors.textSecondary} 
-              size={20} 
-            />
-          </Pressable>
-        </View>
-
-        {/* Title */}
-        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{item.title}</Text>
-
-        {/* Tags */}
-        <View style={styles.tagsContainer}>
-          <View style={[styles.tag, { backgroundColor: getTagColor(item.tag) }]}>
-            <Text style={[styles.tagText, { color: getTagTextColor(item.tag) }]}>
-              {item.tag}
-            </Text>
-          </View>
-          <View style={[styles.tag, styles.tagSecondary, { borderColor: theme.colors.border, backgroundColor: 'transparent' }]}>
-            <Text style={[styles.tagText, { color: theme.colors.textPrimary }]}>
-              {item.sector}
-            </Text>
-          </View>
-        </View>
-
-        {/* Impact Analysis Section */}
-        <View style={[styles.impactBox, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.impactHeader}>
-            <View style={[styles.impactIcon, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.impactIconText}>✈</Text>
+          style={[styles.scrollView, { backgroundColor: theme.colors.background }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Tags with bookmark */}
+          <View style={styles.tagsRow}>
+            <View style={styles.tagsContainer}>
+              <View style={[styles.tag, styles.tagPill, { backgroundColor: theme.colors.surface }]}>
+                <Text style={[styles.tagText, { color: theme.colors.textPrimary }]}>
+                  {getSecondaryTag()}
+                </Text>
+              </View>
+              <View style={[styles.tag, styles.tagPill, { backgroundColor: theme.colors.surface }]}>
+                <Text style={[styles.tagText, { color: theme.colors.textPrimary }]}>
+                  {item.sector.toUpperCase()}
+                </Text>
+              </View>
             </View>
-            <Text style={[styles.impactTitle, { color: theme.colors.textPrimary }]}>IMPACT ANALYSIS</Text>
+            <Pressable onPress={handleBookmarkPress} style={styles.bookmarkButton}>
+              <BookmarkIcon 
+                color={isBookmarked ? theme.colors.primary : theme.colors.textSecondary} 
+                size={20} 
+              />
+            </Pressable>
           </View>
-          <Text style={[styles.impactText, { color: theme.colors.textPrimary }]}>{impactAnalysis}</Text>
-        </View>
 
-        {/* Key Facts Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Key Facts</Text>
-          {keyFacts.map((fact, index) => (
-            <View key={index} style={styles.bulletPoint}>
-              <Text style={[styles.bullet, { color: theme.colors.textPrimary }]}>•</Text>
-              <Text style={[styles.bulletText, { color: theme.colors.textPrimary }]}>{fact}</Text>
+          {/* Title */}
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{item.title}</Text>
+
+          {/* Source and time */}
+          <Text style={[styles.sourceTime, { color: theme.colors.textSecondary }]}>
+            {item.source} • {item.time}
+          </Text>
+
+          {/* Original Article Section */}
+          <View style={[styles.originalArticleBox, { backgroundColor: theme.colors.surface }]}>
+            <View style={styles.originalArticleHeader}>
+              <Text style={[styles.originalArticleTitle, { color: theme.colors.textPrimary }]}>
+                ORIGINAL ARTICLE
+              </Text>
+              <Text style={[styles.externalLinkIcon, { color: theme.colors.textSecondary }]}>↗</Text>
             </View>
-          ))}
-        </View>
+            <Text style={[styles.originalArticleText, { color: theme.colors.textPrimary }]}>
+              {originalArticleSummary}
+            </Text>
+            <Pressable style={[styles.readFullButton, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.readFullText}>Read Full Article</Text>
+            </Pressable>
+          </View>
 
-        {/* Related Assets Section */}
-        <View style={styles.section}>
-          <Text style={[styles.relatedAssetsTitle, { color: theme.colors.textSecondary }]}>RELATED ASSETS</Text>
-          <View style={styles.assetsContainer}>
-            {relatedAssets.map((asset, index) => (
-              <View key={index} style={[styles.assetTag, { backgroundColor: theme.colors.surface }]}>
-                <Text style={[styles.assetTagText, { color: theme.colors.textPrimary }]}>{asset}</Text>
+          {/* Why This Matters Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Why This Matters</Text>
+            {whyThisMatters.map((point, index) => (
+              <View key={index} style={styles.bulletPoint}>
+                <Text style={[styles.bullet, { color: theme.colors.textPrimary }]}>•</Text>
+                <Text style={[styles.bulletText, { color: theme.colors.textPrimary }]}>{point}</Text>
               </View>
             ))}
           </View>
-        </View>
 
-        {/* Source */}
-        <View style={styles.sourceContainer}>
-          <Text style={[styles.sourceText, { color: theme.colors.textSecondary }]}>Source: {item.source}</Text>
-          <Text style={[styles.externalLink, { color: theme.colors.textSecondary }]}>↗</Text>
-        </View>
+          {/* Impact Scope Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Impact Scope</Text>
+            {impactScope.map((company, index) => (
+              <Pressable 
+                key={index} 
+                style={[styles.impactScopeItem, { backgroundColor: theme.colors.surface }]}
+                onPress={() => navigation.navigate('StockDetail', { stock: company.symbol })}
+              >
+                <View style={styles.impactScopeLeft}>
+                  <Text style={[styles.impactSymbol, { color: theme.colors.textPrimary }]}>
+                    {company.symbol}
+                  </Text>
+                  <Text style={[styles.impactName, { color: theme.colors.textSecondary }]}>
+                    {company.name}
+                  </Text>
+                </View>
+                <View style={[styles.impactTag, { backgroundColor: getTagColor(company.impact) }]}>
+                  <Text style={[styles.impactTagText, { color: getTagTextColor(company.impact) }]}>
+                    {company.impact}
+                  </Text>
+                  <Text style={[styles.impactArrow, { color: getTagTextColor(company.impact) }]}>→</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
 
-        {/* CTA Button */}
-        <Pressable
-          style={[styles.ctaButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => navigation.navigate('StockDetail', { stock: item.stock })}
-        >
-          <Text style={styles.ctaText}>View {item.stock} Stock</Text>
-          <Text style={styles.ctaArrow}>→</Text>
-        </Pressable>
-      </ScrollView>
-    </Screen>
+          {/* Risk & Opportunity Map Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Risk & Opportunity Map</Text>
+            
+            {/* Risks */}
+            <View style={[styles.riskOppBox, { backgroundColor: getRiskBoxBg() }]}>
+              <View style={styles.riskOppHeader}>
+                <Text style={styles.riskIcon}>⚠</Text>
+                <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Risks</Text>
+              </View>
+              {risks.map((risk, index) => (
+                <View key={index} style={styles.bulletPoint}>
+                  <Text style={[styles.bullet, { color: theme.colors.textPrimary }]}>•</Text>
+                  <Text style={[styles.bulletText, { color: theme.colors.textPrimary }]}>{risk}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Opportunities */}
+            <View style={[styles.riskOppBox, styles.opportunityBox, { backgroundColor: getOpportunityBoxBg() }]}>
+              <View style={styles.riskOppHeader}>
+                <Text style={styles.opportunityIcon}>📈</Text>
+                <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Opportunities</Text>
+              </View>
+              {opportunities.map((opp, index) => (
+                <View key={index} style={styles.bulletPoint}>
+                  <Text style={[styles.bullet, { color: theme.colors.textPrimary }]}>•</Text>
+                  <Text style={[styles.bulletText, { color: theme.colors.textPrimary }]}>{opp}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* What This Signals Section */}
+          <View style={styles.section}>
+            <Text style={[styles.signalsTitle, { color: theme.colors.textPrimary }]}>WHAT THIS SIGNALS</Text>
+            <View style={[styles.signalTag, { backgroundColor: colors.risk }]}>
+              <Text style={[styles.signalTagText, { color: theme.colors.textPrimary }]}>
+                ↔ {signal}
+              </Text>
+            </View>
+            <Text style={[styles.signalDescription, { color: theme.colors.textPrimary }]}>
+              {signalDescription}
+            </Text>
+          </View>
+
+          {/* PESTLE Impact Snapshot Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>PESTLE Impact Snapshot</Text>
+            <View style={styles.pestleContainer}>
+              {pestleCards.map((card, index) => (
+                <View key={index} style={[styles.pestleCard, { backgroundColor: theme.colors.surface }]}>
+                  <Text style={styles.pestleIcon}>{card.icon}</Text>
+                  <Text style={[styles.pestleCategory, { color: theme.colors.textPrimary }]}>
+                    {card.category}
+                  </Text>
+                  <Text style={[styles.pestleText, { color: theme.colors.textSecondary }]}>
+                    {card.text}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+        </ScrollView>
+      </Screen>
     </>
   );
 }
@@ -163,9 +269,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    padding: spacing.md,
     paddingBottom: spacing.lg * 2,
   },
-  metaRow: {
+  tagsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -177,63 +284,67 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  meta: {
-    fontSize: 12,
-    marginBottom: spacing.md,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-    lineHeight: 32,
-  },
   tagsContainer: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
   tag: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  tagSecondary: {
-    borderWidth: 1,
+  tagPill: {
+    borderRadius: 16,
   },
   tagText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  impactBox: {
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  impactHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  impactIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.xs,
-  },
-  impactIconText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-  },
-  impactTitle: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
   },
-  impactText: {
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    lineHeight: 36,
+  },
+  sourceTime: {
+    fontSize: 13,
+    marginBottom: spacing.lg,
+  },
+  originalArticleBox: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  originalArticleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  originalArticleTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  externalLinkIcon: {
+    fontSize: 14,
+  },
+  originalArticleText: {
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  readFullButton: {
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  readFullText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   section: {
     marginBottom: spacing.lg,
@@ -258,56 +369,111 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  relatedAssetsTitle: {
+  impactScopeItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+  },
+  impactScopeLeft: {
+    flex: 1,
+  },
+  impactSymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  impactName: {
+    fontSize: 13,
+  },
+  impactTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 16,
+    gap: spacing.xs,
+  },
+  impactTagText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  impactArrow: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  riskOppBox: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  opportunityBox: {
+    marginBottom: 0,
+  },
+  riskOppHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  riskIcon: {
+    fontSize: 16,
+    marginRight: spacing.xs,
+  },
+  opportunityIcon: {
+    fontSize: 16,
+    marginRight: spacing.xs,
+  },
+  riskOppTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  signalsTitle: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
   },
-  assetsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  assetTag: {
+  signalTag: {
+    alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
     borderRadius: 16,
+    marginBottom: spacing.sm,
   },
-  assetTagText: {
+  signalTagText: {
     fontSize: 12,
     fontWeight: '500',
   },
-  sourceContainer: {
+  signalDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  pestleContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  sourceText: {
-    fontSize: 12,
-    marginRight: spacing.xs,
-  },
-  externalLink: {
-    fontSize: 12,
-  },
-  ctaButton: {
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'space-between',
+  },
+  pestleCard: {
+    flex: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.md,
+    minHeight: 100,
+    justifyContent: 'center',
   },
-  ctaText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  pestleIcon: {
+    fontSize: 24,
+    marginBottom: spacing.xs,
   },
-  ctaArrow: {
-    fontSize: 20,
-    color: '#FFFFFF',
+  pestleCategory: {
+    fontSize: 12,
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  pestleText: {
+    fontSize: 11,
+    textAlign: 'center',
   },
 });
