@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Text, StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute } from '@react-navigation/native';
 import Screen from '../components/Screen';
@@ -102,6 +102,9 @@ export default function StockDetailScreen() {
   return (
     <>
       <StatusBar style={theme.colors.background === darkTheme.colors.background ? 'light' : 'dark'} />
+      {Platform.OS === 'android' && (
+        <RNStatusBar backgroundColor={theme.colors.background} barStyle={theme.colors.background === darkTheme.colors.background ? 'light-content' : 'dark-content'} />
+      )}
       <Screen>
         <ScrollView
         style={[styles.scrollView, { backgroundColor: theme.colors.background }]}

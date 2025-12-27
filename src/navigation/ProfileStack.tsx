@@ -21,6 +21,7 @@ export default function ProfileStack() {
           fontWeight: '600',
         },
         headerBackTitleVisible: false,
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen 

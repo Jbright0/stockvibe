@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import SavedScreen from '../screens/SavedScreen';
+import ExploreScreen from '../screens/ExploreScreen';
 import NewsDetailScreen from '../screens/NewsDetailScreen';
 import StockDetailScreen from '../screens/StockDetailScreen';
 import SectorDetailScreen from '../screens/SectorDetailScreen';
@@ -7,7 +7,7 @@ import { useTheme } from '../theme/ThemeContext';
 
 const Stack = createNativeStackNavigator();
 
-export default function SavedStack() {
+export default function ExploreStack() {
   const { theme } = useTheme();
   
   return (
@@ -26,8 +26,8 @@ export default function SavedStack() {
       }}
     >
       <Stack.Screen
-        name="SavedHome"
-        component={SavedScreen}
+        name="ExploreHome"
+        component={ExploreScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen

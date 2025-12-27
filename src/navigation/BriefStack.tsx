@@ -22,6 +22,7 @@ export default function BriefStack() {
           fontWeight: '600',
         },
         headerBackTitleVisible: false,
+        headerShadowVisible: false,
       }}
     >
       <Stack.Screen
