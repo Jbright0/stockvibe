@@ -40,7 +40,7 @@ export default function NewsCard({ item }: any) {
 
   return (
     <Pressable
-      onPress={() => navigation.navigate('NewsDetail', { item })}
+      onPress={() => navigation.navigate('Insight', { item })}
     >
       <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <View style={styles.headerRow}>

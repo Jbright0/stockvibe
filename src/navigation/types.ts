@@ -1,6 +1,6 @@
 export type RootStackParamList = {
     BriefHome: undefined;
-    NewsDetail: { item: any };
+    Insight: { item: any };
     StockDetail: { stock: string };
     SectorDetail: { sector: string };
   };

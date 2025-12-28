@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
 import { colors, spacing, radius, darkTheme } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
+import BookmarkIcon from '../components/icons/BookmarkIcon';
+import { bookmarks } from '../store/bookmarks';
+import { NewsItem } from '../data/mockData';
 
 interface RelatedNewsItem {
   date: string;
@@ -16,11 +19,14 @@ interface RelatedNewsItem {
 
 export default function StockDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { stock } = route.params;
   const [isFollowing, setIsFollowing] = useState(false);
   const [isPremium, setIsPremium] = useState(false); // TODO: Connect to actual premium membership system
   const [isAISummaryCollapsed, setIsAISummaryCollapsed] = useState(false);
+  const [selectedNewsItem, setSelectedNewsItem] = useState<RelatedNewsItem | null>(null);
+  const [bookmarkUpdateKey, setBookmarkUpdateKey] = useState(0);
 
   // Mock stock data
   const stockData: Record<string, { name: string; categories: string[]; sector: string }> = {
@@ -201,46 +207,28 @@ export default function StockDetailScreen() {
             </>
           ) : (
             <View style={styles.lockedContent}>
-              {/* Blurred Content Preview */}
-              <View style={styles.blurredContent}>
-                <View style={styles.aiSummarySection}>
-                  <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>ACTIVE DRIVERS</Text>
-                  <View style={styles.driverItem}>
-                    <View style={[styles.driverDot, { backgroundColor: colors.oppty }]} />
-                    <Text style={[styles.driverText, { color: theme.colors.textPrimary }]}>Services revenue growth accelerating despite hardware slowdown.</Text>
-                  </View>
-                  <View style={styles.driverItem}>
-                    <View style={[styles.driverDot, { backgroundColor: colors.risk }]} />
-                    <Text style={[styles.driverText, { color: theme.colors.textPrimary }]}>Regulatory pressure in EU markets impacting App Store margins.</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Locked Overlay */}
-              <View style={[styles.lockedOverlay, { backgroundColor: theme.colors.surface }]}>
-                <View style={styles.lockedContentInner}>
-                  <Text style={[styles.unlockTitle, { color: theme.colors.textPrimary }]}>Unlock AI Insights</Text>
-                  <Text style={[styles.unlockDescription, { color: theme.colors.textSecondary }]}>
-                    Get instant, aggregated insights derived from multiple articles to see the bigger picture.
-                  </Text>
-                  <Pressable 
-                    style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
-                    onPress={() => {
-                      // TODO: Navigate to upgrade/pricing screen
-                      console.log('Upgrade to Pro');
-                    }}
-                  >
-                    <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
-                  </Pressable>
-                  <Pressable 
-                    style={styles.maybeLaterButton}
-                    onPress={() => {
-                      setIsAISummaryCollapsed(true);
-                    }}
-                  >
-                    <Text style={[styles.maybeLaterText, { color: theme.colors.textSecondary }]}>Maybe later</Text>
-                  </Pressable>
-                </View>
+              <View style={styles.lockedContentInner}>
+                <Text style={[styles.unlockTitle, { color: theme.colors.textPrimary }]}>Unlock AI Insights</Text>
+                <Text style={[styles.unlockDescription, { color: theme.colors.textSecondary }]}>
+                  Get instant, aggregated insights derived from multiple articles to see the bigger picture.
+                </Text>
+                <Pressable 
+                  style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => {
+                    // TODO: Navigate to upgrade/pricing screen
+                    console.log('Upgrade to Pro');
+                  }}
+                >
+                  <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+                </Pressable>
+                <Pressable 
+                  style={styles.maybeLaterButton}
+                  onPress={() => {
+                    setIsAISummaryCollapsed(true);
+                  }}
+                >
+                  <Text style={[styles.maybeLaterText, { color: theme.colors.textSecondary }]}>Maybe later</Text>
+                </Pressable>
               </View>
             </View>
           )}
@@ -253,26 +241,108 @@ export default function StockDetailScreen() {
 
           {/* News Items List */}
           <View style={styles.newsList}>
-            {relatedNews.map((item, index) => (
-              <View key={index} style={[styles.newsItemCard, { backgroundColor: theme.colors.surface }]}>
-                <View style={styles.newsItemContent}>
-                  <View style={styles.newsHeader}>
-                    <Text style={[styles.newsDate, { color: theme.colors.textSecondary }]}>{item.date}</Text>
-                    <Text style={[styles.newsSource, { color: theme.colors.textSecondary }]}>{item.source}</Text>
+            {relatedNews.map((item, index) => {
+              // Convert RelatedNewsItem to NewsItem format for bookmarking
+              const newsItem: NewsItem = {
+                title: item.headline,
+                summary: item.summary,
+                stock: stock,
+                sector: currentStock.sector,
+                tag: item.tag,
+                source: item.source,
+                time: item.date,
+              };
+
+              return (
+                <Pressable
+                  key={index}
+                  style={[styles.newsItemCard, { backgroundColor: theme.colors.surface }]}
+                  onPress={() => setSelectedNewsItem(item)}
+                >
+                  <View style={styles.newsItemContent}>
+                    <View style={styles.newsHeader}>
+                      <View style={styles.newsHeaderLeft}>
+                        <Text style={[styles.newsDate, { color: theme.colors.textSecondary }]}>{item.date}</Text>
+                        <Text style={[styles.newsSource, { color: theme.colors.textSecondary }]}>{item.source}</Text>
+                      </View>
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          bookmarks.toggle(newsItem);
+                          setBookmarkUpdateKey(prev => prev + 1); // Force re-render
+                        }}
+                        style={styles.bookmarkButton}
+                      >
+                        <BookmarkIcon
+                          color={bookmarks.isBookmarked(newsItem) ? theme.colors.primary : theme.colors.textSecondary}
+                          size={12}
+                        />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.newsHeadline, { color: theme.colors.textPrimary }]}>{item.headline}</Text>
+                    <Text style={[styles.newsSummary, { color: theme.colors.textPrimary }]}>{item.summary}</Text>
                   </View>
-                  <Text style={[styles.newsHeadline, { color: theme.colors.textPrimary }]}>{item.headline}</Text>
-                  <Text style={[styles.newsSummary, { color: theme.colors.textPrimary }]}>{item.summary}</Text>
-                </View>
-              </View>
-            ))}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
-        {/* Sector History Button */}
-        <Pressable style={[styles.sectorHistoryButton, { backgroundColor: theme.colors.primary }]}>
-          <Text style={styles.sectorHistoryText}>View {currentStock.sector} Sector</Text>
-        </Pressable>
       </ScrollView>
+
+      {/* News Article Modal */}
+      <Modal
+        visible={selectedNewsItem !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedNewsItem(null)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setSelectedNewsItem(null)} style={styles.modalCloseButton}>
+              <Text style={[styles.modalCloseText, { color: theme.colors.textPrimary }]}>✕</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
+            {selectedNewsItem && (
+              <>
+                <View style={styles.modalHeaderInfo}>
+                  <Text style={[styles.modalDate, { color: theme.colors.textSecondary }]}>{selectedNewsItem.date}</Text>
+                  <Text style={[styles.modalSource, { color: theme.colors.textSecondary }]}>{selectedNewsItem.source}</Text>
+                </View>
+                <Text style={[styles.modalHeadline, { color: theme.colors.textPrimary }]}>{selectedNewsItem.headline}</Text>
+                <Text style={[styles.modalSummary, { color: theme.colors.textPrimary }]}>{selectedNewsItem.summary}</Text>
+                <Text style={[styles.modalFullArticle, { color: theme.colors.textPrimary }]}>
+                  {selectedNewsItem.summary} This represents a significant development in the market landscape. Analysts are closely monitoring the situation as it unfolds. The implications extend beyond immediate market reactions, potentially affecting long-term strategic decisions for stakeholders across the industry.
+                </Text>
+              </>
+            )}
+          </ScrollView>
+          <View style={[styles.modalFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+            <Pressable
+              style={[styles.getInsightButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => {
+                if (selectedNewsItem) {
+                  setSelectedNewsItem(null);
+                  // Create a news item format for navigation
+                  const newsItem = {
+                    title: selectedNewsItem.headline,
+                    summary: selectedNewsItem.summary,
+                    stock: stock,
+                    sector: currentStock.sector,
+                    tag: selectedNewsItem.tag,
+                    source: selectedNewsItem.source,
+                    time: selectedNewsItem.date,
+                  };
+                  navigation.navigate('Insight', { item: newsItem });
+                }
+              }}
+            >
+              <Text style={styles.getInsightButtonText}>Get Insight</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
     </>
   );
@@ -459,8 +529,14 @@ const styles = StyleSheet.create({
   newsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.xs,
+  },
+  newsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
+    flex: 1,
   },
   newsDate: {
     fontSize: 12,
@@ -469,6 +545,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  bookmarkButton: {
+    padding: spacing.xs,
+    marginLeft: spacing.sm,
   },
   newsHeadline: {
     fontSize: 16,
@@ -480,35 +560,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  sectorHistoryButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  sectorHistoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   lockedContent: {
-    position: 'relative',
-    minHeight: 200,
     alignItems: 'center',
-  },
-  blurredContent: {
-    opacity: 0.3,
-  },
-  lockedOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: spacing.lg,
+    minHeight: 200,
   },
   lockedContentInner: {
     alignItems: 'center',
@@ -551,5 +607,77 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     padding: spacing.md,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.lg * 2,
+  },
+  modalHeaderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  modalDate: {
+    fontSize: 12,
+  },
+  modalSource: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  modalHeadline: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    lineHeight: 32,
+  },
+  modalSummary: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+    fontWeight: '600',
+  },
+  modalFullArticle: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  modalFooter: {
+    padding: spacing.md,
+    borderTopWidth: 1,
+    paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  },
+  getInsightButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  getInsightButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

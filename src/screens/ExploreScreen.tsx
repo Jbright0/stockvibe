@@ -1,11 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Text, View, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
-import { colors, spacing, radius } from '../theme/tokens';
+import { spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
-
-type FilterType = 'All' | 'Risk' | 'Opportunity' | 'Neutral';
+import BookmarkIcon from '../components/icons/BookmarkIcon';
+import { bookmarks } from '../store/bookmarks';
+import { NewsItem } from '../data/mockData';
 
 interface ThematicCollection {
   id: string;
@@ -33,24 +34,7 @@ export default function ExploreScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterType>('All');
-
-  const getTagColor = (tag: string) => {
-    switch (tag) {
-      case 'Risk':
-        return colors.risk;
-      case 'Opportunity':
-        return colors.oppty;
-      case 'Neutral':
-        return colors.neutral;
-      default:
-        return colors.neutral;
-    }
-  };
-
-  const getTagTextColor = (tag: string) => {
-    return tag === 'Opportunity' ? '#FFFFFF' : theme.colors.textPrimary;
-  };
+  const [bookmarkUpdateKey, setBookmarkUpdateKey] = useState(0); // Force re-render on bookmark changes
 
   // Mock data
   const thematicCollections: ThematicCollection[] = [
@@ -113,15 +97,6 @@ export default function ExploreScreen() {
     },
   ];
 
-  const filteredInsights = useMemo(() => {
-    if (filter === 'All') return insightFeed;
-    return insightFeed.filter(item => item.tag === filter);
-  }, [filter]);
-
-  const filteredSectors = useMemo(() => {
-    if (filter === 'All') return sectorWatch;
-    return sectorWatch.filter(item => item.tag === filter);
-  }, [filter]);
 
   return (
     <Screen>
@@ -147,43 +122,6 @@ export default function ExploreScreen() {
           />
         </View>
 
-        {/* Filter Buttons */}
-        <View style={styles.filtersContainer}>
-          {(['All', 'Risk', 'Opportunity', 'Neutral'] as FilterType[]).map((tag) => {
-            const isActive = filter === tag;
-            const isAll = tag === 'All';
-            
-            return (
-              <Pressable
-                key={tag}
-                onPress={() => setFilter(tag)}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor: isActive
-                      ? (isAll ? theme.colors.primary : getTagColor(tag))
-                      : 'transparent',
-                    borderColor: isAll ? theme.colors.primary : getTagColor(tag),
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    {
-                      color: isActive
-                        ? (isAll ? '#FFFFFF' : getTagTextColor(tag))
-                        : (isAll ? theme.colors.primary : getTagColor(tag)),
-                    },
-                  ]}
-                >
-                  {tag}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         {/* Thematic Collections */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -207,65 +145,107 @@ export default function ExploreScreen() {
           </ScrollView>
         </View>
 
-        {/* Insight Feed */}
+        {/* Stock Watch */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>INSIGHT FEED</Text>
-          {filteredInsights.map((item) => (
-            <Pressable 
-              key={item.id} 
-              style={[styles.insightCard, { backgroundColor: theme.colors.surface }]}
-              onPress={() => {
-                // Create a news item format for navigation
-                const newsItem = {
-                  title: item.description,
-                  summary: item.description,
-                  stock: item.ticker,
-                  sector: item.companyName,
-                  tag: item.tag,
-                  source: 'Stock Vibe',
-                  time: 'Just now',
-                };
-                navigation.navigate('NewsDetail', { item: newsItem });
-              }}
-            >
-              <View style={styles.insightHeader}>
-                <View>
-                  <Text style={[styles.companyName, { color: theme.colors.textPrimary }]}>{item.companyName}</Text>
-                  <Text style={[styles.ticker, { color: theme.colors.textSecondary }]}>{item.ticker}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>STOCK WATCH</Text>
+          {insightFeed.map((item) => {
+            // Convert InsightItem to NewsItem format for bookmarking
+            const newsItem: NewsItem = {
+              title: `${item.companyName} - ${item.ticker}`,
+              summary: item.description,
+              stock: item.ticker,
+              sector: item.companyName,
+              tag: item.tag,
+              source: 'Stock Vibe',
+              time: 'Just now',
+            };
+            
+            return (
+              <Pressable 
+                key={item.id} 
+                style={[styles.insightCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => {
+                  navigation.navigate('StockDetail', { stock: item.ticker });
+                }}
+              >
+                <View style={styles.insightHeader}>
+                  <View style={styles.insightHeaderLeft}>
+                    <View style={styles.headingRow}>
+                      <Text style={[styles.companyName, { color: theme.colors.textPrimary }]}>{item.companyName}</Text>
+                      <View style={[styles.newTag, { backgroundColor: theme.colors.primary }]}>
+                        <Text style={styles.newTagText}>NEW</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.ticker, { color: theme.colors.textSecondary }]}>{item.ticker}</Text>
+                  </View>
+                  <Pressable 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      bookmarks.toggle(newsItem);
+                      setBookmarkUpdateKey(prev => prev + 1); // Force re-render
+                    }}
+                    style={styles.bookmarkButton}
+                  >
+                    <BookmarkIcon 
+                      color={bookmarks.isBookmarked(newsItem) ? theme.colors.primary : theme.colors.textSecondary} 
+                      size={12} 
+                    />
+                  </Pressable>
                 </View>
-                <View style={[styles.tagBadge, { backgroundColor: getTagColor(item.tag) }]}>
-                  <Text style={[styles.tagText, { color: getTagTextColor(item.tag) }]}>
-                    {item.tag}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
-            </Pressable>
-          ))}
+                <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Sector Watch */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>SECTOR WATCH</Text>
-          {filteredSectors.map((item) => (
-            <Pressable 
-              key={item.id} 
-              style={[styles.sectorCard, { backgroundColor: theme.colors.surface }]}
-              onPress={() => {
-                navigation.navigate('SectorDetail', { sector: item.sectorName });
-              }}
-            >
-              <View style={styles.sectorHeader}>
-                <Text style={[styles.sectorName, { color: theme.colors.textPrimary }]}>{item.sectorName}</Text>
-                <View style={[styles.tagBadge, { backgroundColor: getTagColor(item.tag) }]}>
-                  <Text style={[styles.tagText, { color: getTagTextColor(item.tag) }]}>
-                    {item.tag}
-                  </Text>
+          {sectorWatch.map((item) => {
+            // Convert SectorItem to NewsItem format for bookmarking
+            const newsItem: NewsItem = {
+              title: item.sectorName,
+              summary: item.description,
+              stock: '',
+              sector: item.sectorName,
+              tag: item.tag,
+              source: 'Stock Vibe',
+              time: 'Just now',
+            };
+            
+            return (
+              <Pressable 
+                key={item.id} 
+                style={[styles.sectorCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => {
+                  navigation.navigate('SectorDetail', { sector: item.sectorName });
+                }}
+              >
+                <View style={styles.sectorHeader}>
+                  <View style={styles.headingRow}>
+                    <Text style={[styles.sectorName, { color: theme.colors.textPrimary }]}>{item.sectorName}</Text>
+                    <View style={[styles.newTag, { backgroundColor: theme.colors.primary }]}>
+                      <Text style={styles.newTagText}>NEW</Text>
+                    </View>
+                  </View>
+                  <Pressable 
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      bookmarks.toggle(newsItem);
+                      setBookmarkUpdateKey(prev => prev + 1); // Force re-render
+                    }}
+                    style={styles.bookmarkButton}
+                  >
+                    <BookmarkIcon 
+                      color={bookmarks.isBookmarked(newsItem) ? theme.colors.primary : theme.colors.textSecondary} 
+                      size={12} 
+                    />
+                  </Pressable>
                 </View>
-              </View>
-              <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
-            </Pressable>
-          ))}
+                <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
     </Screen>
@@ -303,22 +283,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-  },
-  filtersContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  filterButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   section: {
     marginBottom: spacing.lg,
@@ -388,22 +352,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
+  insightHeaderLeft: {
+    flex: 1,
+  },
   companyName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: spacing.xs,
   },
   ticker: {
     fontSize: 12,
-  },
-  tagBadge: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: '500',
   },
   description: {
     fontSize: 14,
@@ -417,11 +374,36 @@ const styles = StyleSheet.create({
   sectorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.sm,
   },
   sectorName: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  bookmarkButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
+  },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  newTag: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 });

@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { useState, useEffect } from 'react';
+import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
 import { colors, spacing, radius, darkTheme } from '../theme/tokens';
 import BookmarkIcon from '../components/icons/BookmarkIcon';
 import { useTheme } from '../theme/ThemeContext';
+import { bookmarks } from '../store/bookmarks';
+import { NewsItem } from '../data/mockData';
 
 interface DevelopmentItem {
   date: string;
@@ -27,9 +29,13 @@ interface ActiveDriver {
 
 export default function SectorDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { sector } = route.params;
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isPremium, setIsPremium] = useState(false); // TODO: Connect to actual premium membership system
+  const [isAISummaryCollapsed, setIsAISummaryCollapsed] = useState(false);
+  const [bookmarkStates, setBookmarkStates] = useState<Record<number, boolean>>({});
+  const [selectedDevelopmentItem, setSelectedDevelopmentItem] = useState<DevelopmentItem | null>(null);
 
   // Mock sector data
   const sectorData: Record<string, { description: string; status: string; stocksAffected: StockAffected[] }> = {
@@ -178,8 +184,37 @@ export default function SectorDetailScreen() {
       : '#E6F2FF';
   };
 
-  const handleBookmarkPress = () => {
-    setIsBookmarked(!isBookmarked);
+  // Convert DevelopmentItem to NewsItem format for bookmark functionality
+  const developmentToNewsItem = (item: DevelopmentItem, index: number): NewsItem => {
+    return {
+      title: item.headline,
+      summary: item.content,
+      stock: '', // Sector developments don't have a specific stock
+      sector: sector,
+      tag: 'Neutral', // Default tag for sector developments
+      source: item.source,
+      time: item.date,
+    };
+  };
+
+  // Check bookmark status for each development item
+  useEffect(() => {
+    const states: Record<number, boolean> = {};
+    recentDevelopments.forEach((item, index) => {
+      const newsItem = developmentToNewsItem(item, index);
+      states[index] = bookmarks.isBookmarked(newsItem);
+    });
+    setBookmarkStates(states);
+  }, []);
+
+  const handleDevelopmentBookmarkPress = (item: DevelopmentItem, index: number, e: any) => {
+    e.stopPropagation();
+    const newsItem = developmentToNewsItem(item, index);
+    const newBookmarkState = bookmarks.toggle(newsItem);
+    setBookmarkStates(prev => ({
+      ...prev,
+      [index]: newBookmarkState,
+    }));
   };
 
   return (
@@ -197,112 +232,226 @@ export default function SectorDetailScreen() {
         {/* Header Section */}
         <View style={styles.headerRow}>
           <Text style={[styles.sectorTitle, { color: theme.colors.textPrimary }]}>{sector}</Text>
-          <Pressable onPress={handleBookmarkPress} style={styles.bookmarkButton}>
-            <BookmarkIcon 
-              color={isBookmarked ? theme.colors.primary : theme.colors.textSecondary} 
-              size={20} 
-            />
-          </Pressable>
         </View>
 
         <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{currentSector.description}</Text>
 
         {/* AI Summary Section */}
-        <View style={[styles.aiSummaryCard, { backgroundColor: theme.colors.surface }]}>
-          <View style={styles.aiSummaryHeader}>
-            <Text style={styles.aiSummaryIcon}>✨</Text>
-            <Text style={[styles.aiSummaryTitle, { color: theme.colors.textPrimary }]}>AI Summary of Sector Insights</Text>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO</Text>
-            </View>
-          </View>
-
-          {/* Active Drivers */}
-          <View style={styles.aiSummarySection}>
-            <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>ACTIVE DRIVERS</Text>
-            {activeDrivers.map((driver, index) => (
-              <View key={index} style={styles.driverItem}>
-                <View style={[styles.driverDot, { backgroundColor: getDriverColor(driver.type) }]} />
-                <View style={styles.driverContent}>
-                  <View style={[styles.driverBadge, { backgroundColor: getDriverColor(driver.type) }]}>
-                    <Text style={[styles.driverBadgeText, { color: getDriverBadgeTextColor(driver.type) }]}>
-                      {driver.type}
-                    </Text>
-                  </View>
-                  <Text style={[styles.driverText, { color: theme.colors.textPrimary }]}>{driver.description}</Text>
+        {isAISummaryCollapsed ? (
+          <Pressable 
+            style={[styles.aiSummaryCard, { backgroundColor: theme.colors.primary }]}
+            onPress={() => setIsAISummaryCollapsed(false)}
+          >
+            <Text style={[styles.collapsedText, { color: '#FFFFFF' }]}>AI Summary of Sector Insights</Text>
+          </Pressable>
+        ) : (
+          <View style={[styles.aiSummaryCard, { backgroundColor: theme.colors.surface }]}>
+            {isPremium ? (
+              <View style={styles.aiSummaryHeader}>
+                <Text style={styles.aiSummaryIcon}>✨</Text>
+                <Text style={[styles.aiSummaryTitle, styles.aiSummaryTitlePremium, { color: theme.colors.textPrimary }]}>AI Summary of Sector Insights</Text>
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
                 </View>
               </View>
-            ))}
-          </View>
-
-          {/* Momentum Signals */}
-          <View style={styles.aiSummarySection}>
-            <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>MOMENTUM SIGNALS</Text>
-            <View style={[styles.mixedSignalsBadge, { backgroundColor: colors.neutral }]}>
-              <Text style={[styles.mixedSignalsText, { color: theme.colors.textPrimary }]}>Mixed</Text>
-            </View>
-            <Text style={[styles.signalDescription, { color: theme.colors.textPrimary }]}>
-              High-performance computing segment is accelerating, while automotive and industrial segments show slowing inventory turnover.
-            </Text>
-          </View>
-
-          {/* Risk & Opportunity Landscape */}
-          <View style={styles.aiSummarySection}>
-            <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>RISK & OPPORTUNITY LANDSCAPE</Text>
-            <View style={[styles.riskOppBox, { backgroundColor: getRiskBoxBg() }]}>
-              <View style={styles.riskOppHeader}>
-                <Text style={styles.riskIcon}>⚠️</Text>
-                <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Risks</Text>
+            ) : (
+              <View style={styles.aiSummaryHeaderLocked}>
+                <View style={styles.proBadgeTop}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+                <Text style={[styles.aiSummaryTitle, { color: theme.colors.textPrimary }]}>AI Summary of Sector Insights</Text>
               </View>
-              <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Legacy node oversupply</Text>
-              <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Trade bifurcation</Text>
-            </View>
-            <View style={[styles.riskOppBox, { backgroundColor: getOpportunityBoxBg() }]}>
-              <View style={styles.riskOppHeader}>
-                <Text style={styles.oppIcon}>↑</Text>
-                <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Opportunities</Text>
-              </View>
-              <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Sovereign AI clouds</Text>
-              <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Adv. packaging yields</Text>
-            </View>
-          </View>
+            )}
 
-          {/* Stocks Most Affected */}
-          <View style={styles.aiSummarySection}>
-            <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>STOCKS MOST AFFECTED</Text>
-            <View style={styles.stockAffectedCard}>
-              <View style={styles.stockAffectedInfo}>
-                <Text style={[styles.stockAffectedName, { color: theme.colors.textPrimary }]}>Stocks</Text>
-                <Text style={[styles.stockAffectedTicker, { color: theme.colors.textSecondary }]}>STOCKS</Text>
+          {isPremium ? (
+            <>
+              {/* Active Drivers */}
+              <View style={styles.aiSummarySection}>
+                <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>ACTIVE DRIVERS</Text>
+                {activeDrivers.map((driver, index) => (
+                  <View key={index} style={styles.driverItem}>
+                    <View style={[styles.driverDot, { backgroundColor: getDriverColor(driver.type) }]} />
+                    <View style={styles.driverContent}>
+                      <View style={[styles.driverBadge, { backgroundColor: getDriverColor(driver.type) }]}>
+                        <Text style={[styles.driverBadgeText, { color: getDriverBadgeTextColor(driver.type) }]}>
+                          {driver.type}
+                        </Text>
+                      </View>
+                      <Text style={[styles.driverText, { color: theme.colors.textPrimary }]}>{driver.description}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
-              <View style={[styles.stockAffectedBadge, { backgroundColor: getStatusBadgeColor('Neutral') }]}>
-                <Text style={[styles.stockAffectedBadgeText, { color: getStatusBadgeTextColor('Neutral') }]}>
-                  Neutral
+
+              {/* Momentum Signals */}
+              <View style={styles.aiSummarySection}>
+                <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>MOMENTUM SIGNALS</Text>
+                <View style={[styles.mixedSignalsBadge, { backgroundColor: colors.neutral }]}>
+                  <Text style={[styles.mixedSignalsText, { color: theme.colors.textPrimary }]}>Mixed</Text>
+                </View>
+                <Text style={[styles.signalDescription, { color: theme.colors.textPrimary }]}>
+                  High-performance computing segment is accelerating, while automotive and industrial segments show slowing inventory turnover.
                 </Text>
               </View>
+
+              {/* Risk & Opportunity Landscape */}
+              <View style={styles.aiSummarySection}>
+                <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>RISK & OPPORTUNITY LANDSCAPE</Text>
+                <View style={[styles.riskOppBox, { backgroundColor: getRiskBoxBg() }]}>
+                  <View style={styles.riskOppHeader}>
+                    <Text style={styles.riskIcon}>⚠️</Text>
+                    <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Risks</Text>
+                  </View>
+                  <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Legacy node oversupply</Text>
+                  <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Trade bifurcation</Text>
+                </View>
+                <View style={[styles.riskOppBox, { backgroundColor: getOpportunityBoxBg() }]}>
+                  <View style={styles.riskOppHeader}>
+                    <Text style={styles.oppIcon}>↑</Text>
+                    <Text style={[styles.riskOppTitle, { color: theme.colors.textPrimary }]}>Opportunities</Text>
+                  </View>
+                  <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Sovereign AI clouds</Text>
+                  <Text style={[styles.riskOppItem, { color: theme.colors.textPrimary }]}>• Adv. packaging yields</Text>
+                </View>
+              </View>
+
+              {/* Stocks Most Affected */}
+              <View style={styles.aiSummarySection}>
+                <Text style={[styles.aiSummarySectionTitle, { color: theme.colors.textSecondary }]}>STOCKS MOST AFFECTED</Text>
+                <View style={styles.stockAffectedCard}>
+                  <View style={styles.stockAffectedInfo}>
+                    <Text style={[styles.stockAffectedName, { color: theme.colors.textPrimary }]}>Stocks</Text>
+                    <Text style={[styles.stockAffectedTicker, { color: theme.colors.textSecondary }]}>STOCKS</Text>
+                  </View>
+                  <View style={[styles.stockAffectedBadge, { backgroundColor: getStatusBadgeColor('Neutral') }]}>
+                    <Text style={[styles.stockAffectedBadgeText, { color: getStatusBadgeTextColor('Neutral') }]}>
+                      Neutral
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.lockedContent}>
+              <View style={styles.lockedContentInner}>
+                <Text style={[styles.unlockTitle, { color: theme.colors.textPrimary }]}>Unlock AI Insights</Text>
+                <Text style={[styles.unlockDescription, { color: theme.colors.textSecondary }]}>
+                  Get instant, aggregated insights derived from multiple articles to see the bigger picture.
+                </Text>
+                <Pressable 
+                  style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => {
+                    // TODO: Navigate to upgrade/pricing screen
+                    console.log('Upgrade to Pro');
+                  }}
+                >
+                  <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
+                </Pressable>
+                <Pressable 
+                  style={styles.maybeLaterButton}
+                  onPress={() => {
+                    setIsAISummaryCollapsed(true);
+                  }}
+                >
+                  <Text style={[styles.maybeLaterText, { color: theme.colors.textSecondary }]}>Maybe later</Text>
+                </Pressable>
+              </View>
             </View>
+          )}
           </View>
-        </View>
+        )}
 
         {/* Recent Sector Developments Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Recent Developments</Text>
           
           {recentDevelopments.map((item, index) => (
-            <View key={index} style={[styles.developmentCard, { backgroundColor: theme.colors.surface }]}>
-              <Text style={[styles.developmentMeta, { color: theme.colors.textSecondary }]}>
-                {item.date} {item.source}
-              </Text>
+            <Pressable
+              key={index}
+              style={[styles.developmentCard, { backgroundColor: theme.colors.surface }]}
+              onPress={() => setSelectedDevelopmentItem(item)}
+            >
+              <View style={styles.developmentCardHeader}>
+                <Text style={[styles.developmentMeta, { color: theme.colors.textSecondary }]}>
+                  {item.date} {item.source}
+                </Text>
+                <Pressable 
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDevelopmentBookmarkPress(item, index, e);
+                  }}
+                  style={styles.developmentBookmarkButton}
+                >
+                  <BookmarkIcon 
+                    color={bookmarkStates[index] ? theme.colors.primary : theme.colors.textSecondary} 
+                    size={12} 
+                  />
+                </Pressable>
+              </View>
               <Text style={[styles.developmentHeadline, { color: theme.colors.textPrimary }]}>
                 {item.headline}
               </Text>
               <Text style={[styles.developmentContent, { color: theme.colors.textPrimary }]}>
                 {item.content}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       </ScrollView>
+
+      {/* Development Article Modal */}
+      <Modal
+        visible={selectedDevelopmentItem !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedDevelopmentItem(null)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setSelectedDevelopmentItem(null)} style={styles.modalCloseButton}>
+              <Text style={[styles.modalCloseText, { color: theme.colors.textPrimary }]}>✕</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
+            {selectedDevelopmentItem && (
+              <>
+                <View style={styles.modalHeaderInfo}>
+                  <Text style={[styles.modalDate, { color: theme.colors.textSecondary }]}>{selectedDevelopmentItem.date}</Text>
+                  <Text style={[styles.modalSource, { color: theme.colors.textSecondary }]}>{selectedDevelopmentItem.source}</Text>
+                </View>
+                <Text style={[styles.modalHeadline, { color: theme.colors.textPrimary }]}>{selectedDevelopmentItem.headline}</Text>
+                <Text style={[styles.modalSummary, { color: theme.colors.textPrimary }]}>{selectedDevelopmentItem.content}</Text>
+                <Text style={[styles.modalFullArticle, { color: theme.colors.textPrimary }]}>
+                  {selectedDevelopmentItem.content} This represents a significant development in the sector landscape. Analysts are closely monitoring the situation as it unfolds. The implications extend beyond immediate market reactions, potentially affecting long-term strategic decisions for stakeholders across the industry. Market participants are evaluating the broader impact on supply chains, regulatory frameworks, and competitive positioning within the sector.
+                </Text>
+              </>
+            )}
+          </ScrollView>
+          <View style={[styles.modalFooter, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+            <Pressable
+              style={[styles.getInsightButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => {
+                if (selectedDevelopmentItem) {
+                  setSelectedDevelopmentItem(null);
+                  // Create a news item format for navigation
+                  const newsItem = {
+                    title: selectedDevelopmentItem.headline,
+                    summary: selectedDevelopmentItem.content,
+                    stock: '',
+                    sector: sector,
+                    tag: 'Neutral',
+                    source: selectedDevelopmentItem.source,
+                    time: selectedDevelopmentItem.date,
+                  };
+                  navigation.navigate('Insight', { item: newsItem });
+                }
+              }}
+            >
+              <Text style={styles.getInsightButtonText}>Get Insight</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
     </>
   );
@@ -326,13 +475,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
   },
-  bookmarkButton: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: spacing.md,
-  },
   description: {
     fontSize: 14,
     lineHeight: 20,
@@ -346,23 +488,42 @@ const styles = StyleSheet.create({
   aiSummaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.md,
-    flexWrap: 'wrap',
-    gap: spacing.xs,
+  },
+  aiSummaryHeaderLocked: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   aiSummaryIcon: {
     fontSize: 16,
   },
   aiSummaryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  aiSummaryTitlePremium: {
+    flex: 1,
+    textAlign: 'left',
     fontSize: 16,
     fontWeight: '600',
-    flex: 1,
   },
   proBadge: {
     backgroundColor: '#60A5FA',
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: 4,
+    marginLeft: spacing.sm,
+  },
+  proBadgeTop: {
+    backgroundColor: '#60A5FA',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginBottom: spacing.xs,
+    alignSelf: 'center',
   },
   proBadgeText: {
     color: '#FFFFFF',
@@ -492,11 +653,24 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
+  developmentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+  },
   developmentMeta: {
     fontSize: 12,
     fontWeight: '400',
-    marginBottom: spacing.xs,
+    flex: 1,
     textTransform: 'uppercase',
+  },
+  developmentBookmarkButton: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
   },
   developmentHeadline: {
     fontSize: 16,
@@ -507,5 +681,126 @@ const styles = StyleSheet.create({
   developmentContent: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  lockedContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    minHeight: 200,
+  },
+  lockedContentInner: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  unlockTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  unlockDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+  },
+  upgradeButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: spacing.md,
+  },
+  upgradeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+  },
+  maybeLaterButton: {
+    paddingVertical: spacing.sm,
+  },
+  maybeLaterText: {
+    fontSize: 14,
+  },
+  collapsedText: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    padding: spacing.md,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.lg * 2,
+  },
+  modalHeaderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  modalDate: {
+    fontSize: 12,
+  },
+  modalSource: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  modalHeadline: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    lineHeight: 32,
+  },
+  modalSummary: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+    fontWeight: '600',
+  },
+  modalFullArticle: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  modalFooter: {
+    padding: spacing.md,
+    borderTopWidth: 1,
+    paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  },
+  getInsightButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  getInsightButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

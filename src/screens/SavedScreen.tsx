@@ -7,7 +7,7 @@ import SavedCard from '../components/SavedCard';
 import { colors, spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 
-type FilterType = 'All' | 'Stocks' | 'Sectors';
+type FilterType = 'All' | 'Risk' | 'Opportunity' | 'Neutral';
 
 export default function SavedScreen() {
   const { theme } = useTheme();
@@ -21,19 +21,28 @@ export default function SavedScreen() {
     }, [])
   );
 
+  const getTagColor = (tag: string) => {
+    switch (tag) {
+      case 'Risk':
+        return colors.risk;
+      case 'Opportunity':
+        return colors.oppty;
+      case 'Neutral':
+        return colors.neutral;
+      default:
+        return colors.neutral;
+    }
+  };
+
+  const getTagTextColor = (tag: string) => {
+    return tag === 'Opportunity' ? '#FFFFFF' : theme.colors.textPrimary;
+  };
+
   const filteredItems = useMemo(() => {
     if (filter === 'All') {
       return bookmarkedItems;
     }
-    if (filter === 'Stocks') {
-      // Filter items that have a stock ticker
-      return bookmarkedItems.filter(item => item.stock && item.stock.trim() !== '');
-    }
-    if (filter === 'Sectors') {
-      // Filter items that have a sector
-      return bookmarkedItems.filter(item => item.sector && item.sector.trim() !== '');
-    }
-    return bookmarkedItems;
+    return bookmarkedItems.filter(item => item.tag === filter);
   }, [bookmarkedItems, filter]);
 
   if (bookmarkedItems.length === 0) {
@@ -54,21 +63,21 @@ export default function SavedScreen() {
 
       {/* Filter Buttons */}
       <View style={styles.filtersContainer}>
-        {(['All', 'Stocks', 'Sectors'] as FilterType[]).map((filterType) => {
-          const isActive = filter === filterType;
-          const isAll = filterType === 'All';
+        {(['All', 'Risk', 'Opportunity', 'Neutral'] as FilterType[]).map((tag) => {
+          const isActive = filter === tag;
+          const isAll = tag === 'All';
           
           return (
             <Pressable
-              key={filterType}
-              onPress={() => setFilter(filterType)}
+              key={tag}
+              onPress={() => setFilter(tag)}
               style={[
                 styles.filterButton,
                 {
                   backgroundColor: isActive
-                    ? (isAll ? theme.colors.primary : theme.colors.textPrimary)
+                    ? (isAll ? theme.colors.primary : getTagColor(tag))
                     : 'transparent',
-                  borderColor: isAll ? theme.colors.primary : theme.colors.textPrimary,
+                  borderColor: isAll ? theme.colors.primary : getTagColor(tag),
                 },
               ]}
             >
@@ -77,12 +86,12 @@ export default function SavedScreen() {
                   styles.filterText,
                   {
                     color: isActive
-                      ? (isAll ? '#FFFFFF' : '#FFFFFF')
-                      : (isAll ? theme.colors.primary : theme.colors.textPrimary),
+                      ? (isAll ? '#FFFFFF' : getTagTextColor(tag))
+                      : (isAll ? theme.colors.primary : getTagColor(tag)),
                   },
                 ]}
               >
-                {filterType}
+                {tag}
               </Text>
             </Pressable>
           );
@@ -116,7 +125,7 @@ const styles = StyleSheet.create({
   filterButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
+    borderRadius: 16,
     borderWidth: 1,
   },
   filterText: {

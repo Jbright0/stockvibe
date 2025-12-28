@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Text, Pressable, StyleSheet, View, ScrollView, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { Text, Pressable, StyleSheet, View, ScrollView, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
@@ -9,12 +9,13 @@ import BookmarkIcon from '../components/icons/BookmarkIcon';
 import { useTheme } from '../theme/ThemeContext';
 import { darkTheme } from '../theme/tokens';
 
-export default function NewsDetailScreen() {
+export default function InsightScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { item } = route.params;
   const [isBookmarked, setIsBookmarked] = useState(bookmarks.isBookmarked(item));
+  const [isArticleModalVisible, setIsArticleModalVisible] = useState(false);
 
   useEffect(() => {
     setIsBookmarked(bookmarks.isBookmarked(item));
@@ -110,7 +111,7 @@ export default function NewsDetailScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Tags with bookmark */}
+          {/* Tags */}
           <View style={styles.tagsRow}>
             <View style={styles.tagsContainer}>
               <View style={[styles.tag, styles.tagPill, { backgroundColor: theme.colors.surface }]}>
@@ -124,12 +125,6 @@ export default function NewsDetailScreen() {
                 </Text>
               </View>
             </View>
-            <Pressable onPress={handleBookmarkPress} style={styles.bookmarkButton}>
-              <BookmarkIcon 
-                color={isBookmarked ? theme.colors.primary : theme.colors.textSecondary} 
-                size={20} 
-              />
-            </Pressable>
           </View>
 
           {/* Title */}
@@ -151,7 +146,10 @@ export default function NewsDetailScreen() {
             <Text style={[styles.originalArticleText, { color: theme.colors.textPrimary }]}>
               {originalArticleSummary}
             </Text>
-            <Pressable style={[styles.readFullButton, { backgroundColor: theme.colors.primary }]}>
+            <Pressable 
+              style={[styles.readFullButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => setIsArticleModalVisible(true)}
+            >
               <Text style={styles.readFullText}>Read Full Article</Text>
             </Pressable>
           </View>
@@ -260,6 +258,37 @@ export default function NewsDetailScreen() {
 
         </ScrollView>
       </Screen>
+
+      {/* Original Article Modal */}
+      <Modal
+        visible={isArticleModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsArticleModalVisible(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.background }]}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setIsArticleModalVisible(false)} style={styles.modalCloseButton}>
+              <Text style={[styles.modalCloseText, { color: theme.colors.textPrimary }]}>✕</Text>
+            </Pressable>
+          </View>
+          <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContentContainer}>
+            <View style={styles.modalHeaderInfo}>
+              <Text style={[styles.modalDate, { color: theme.colors.textSecondary }]}>{item.time}</Text>
+              <Text style={[styles.modalSource, { color: theme.colors.textSecondary }]}>{item.source}</Text>
+            </View>
+            <Text style={[styles.modalHeadline, { color: theme.colors.textPrimary }]}>{item.title}</Text>
+            <Text style={[styles.modalSummary, { color: theme.colors.textPrimary }]}>{originalArticleSummary}</Text>
+            <Text style={[styles.modalFullArticle, { color: theme.colors.textPrimary }]}>
+              {originalArticleSummary} This represents a significant development in the market landscape. Analysts are closely monitoring the situation as it unfolds. The implications extend beyond immediate market reactions, potentially affecting long-term strategic decisions for stakeholders across the industry.
+              {'\n\n'}
+              Market participants have been evaluating the broader implications of this news, considering both short-term volatility and long-term structural changes. The development has sparked discussions among industry experts about potential ripple effects across related sectors and supply chains.
+              {'\n\n'}
+              As the situation continues to evolve, investors and analysts alike are paying close attention to how this development might reshape the competitive landscape. The strategic implications are being carefully analyzed by market observers who are tracking both immediate reactions and potential longer-term trends.
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -274,15 +303,8 @@ const styles = StyleSheet.create({
   },
   tagsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
-  },
-  bookmarkButton: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -476,4 +498,61 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
   },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: spacing.md,
+    paddingTop: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.lg * 2,
+  },
+  modalHeaderInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  modalDate: {
+    fontSize: 12,
+  },
+  modalSource: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  modalHeadline: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    lineHeight: 32,
+  },
+  modalSummary: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: spacing.lg,
+    fontWeight: '600',
+  },
+  modalFullArticle: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
 });
+

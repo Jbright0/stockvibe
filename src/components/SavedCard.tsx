@@ -46,7 +46,7 @@ export default function SavedCard({ item }: any) {
 
   return (
     <Pressable
-      onPress={() => navigation.navigate('NewsDetail', { item })}
+      onPress={() => navigation.navigate('Insight', { item })}
     >
       <View style={styles.card}>
         <View style={styles.headerRow}>
