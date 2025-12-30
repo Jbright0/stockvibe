@@ -1,44 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { darkTheme, colors, spacing, radius } from './tokens';
-
-// Create light theme from existing tokens
-const lightTheme = {
-  colors: {
-    background: colors.bg,
-    surface: colors.card,
-    surfaceMuted: colors.card,
-    border: colors.border,
-    textPrimary: colors.text,
-    textSecondary: colors.muted,
-    textMuted: colors.muted,
-    primary: colors.primary,
-    primaryPressed: colors.primary,
-    icon: colors.muted,
-    placeholder: colors.muted,
-    success: '#22C55E',
-    danger: '#EF4444'
-  },
-  spacing: {
-    xs: spacing.xs,
-    sm: spacing.sm,
-    md: spacing.md,
-    lg: spacing.lg,
-    xl: 32
-  },
-  radius: {
-    sm: radius.sm,
-    md: radius.md,
-    lg: 18,
-    pill: 999
-  },
-  typography: {
-    title: 32,
-    subtitle: 16,
-    body: 15,
-    label: 13
-  }
-};
+import { darkTheme, lightTheme } from './tokens';
 
 interface ThemeContextType {
   theme: typeof darkTheme;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -8,6 +8,8 @@ import { useTheme } from '../theme/ThemeContext';
 import BookmarkIcon from '../components/icons/BookmarkIcon';
 import { bookmarks } from '../store/bookmarks';
 import { NewsItem } from '../data/mockData';
+import { isProMember } from '../utils/membership';
+import UpgradeToProModal from '../components/UpgradeToProModal';
 
 interface RelatedNewsItem {
   date: string;
@@ -17,16 +19,30 @@ interface RelatedNewsItem {
   source: string;
 }
 
-export default function StockDetailScreen() {
+export default function StockWatchScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { stock } = route.params;
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isPremium, setIsPremium] = useState(false); // TODO: Connect to actual premium membership system
+  const [isPremium, setIsPremium] = useState(false);
   const [isAISummaryCollapsed, setIsAISummaryCollapsed] = useState(false);
   const [selectedNewsItem, setSelectedNewsItem] = useState<RelatedNewsItem | null>(null);
   const [bookmarkUpdateKey, setBookmarkUpdateKey] = useState(0);
+  const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+
+  useEffect(() => {
+    loadMembershipStatus();
+  }, []);
+
+  const loadMembershipStatus = async () => {
+    try {
+      const isPro = await isProMember();
+      setIsPremium(isPro);
+    } catch (error) {
+      console.error('Error loading membership status:', error);
+    }
+  };
 
   // Mock stock data
   const stockData: Record<string, { name: string; categories: string[]; sector: string }> = {
@@ -215,8 +231,7 @@ export default function StockDetailScreen() {
                 <Pressable 
                   style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
                   onPress={() => {
-                    // TODO: Navigate to upgrade/pricing screen
-                    console.log('Upgrade to Pro');
+                    setIsUpgradeModalVisible(true);
                   }}
                 >
                   <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
@@ -343,6 +358,18 @@ export default function StockDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Upgrade to Pro Modal */}
+      <UpgradeToProModal
+        visible={isUpgradeModalVisible}
+        onClose={() => setIsUpgradeModalVisible(false)}
+        onStartMembership={async () => {
+          // Membership is upgraded in the modal
+          setIsUpgradeModalVisible(false);
+          // Reload membership status to reflect the change
+          await loadMembershipStatus();
+        }}
+      />
     </Screen>
     </>
   );

@@ -172,7 +172,7 @@ export default function InsightScreen() {
               <Pressable 
                 key={index} 
                 style={[styles.impactScopeItem, { backgroundColor: theme.colors.surface }]}
-                onPress={() => navigation.navigate('StockDetail', { stock: company.symbol })}
+                onPress={() => navigation.navigate('StockWatch', { stock: company.symbol })}
               >
                 <View style={styles.impactScopeLeft}>
                   <Text style={[styles.impactSymbol, { color: theme.colors.textPrimary }]}>

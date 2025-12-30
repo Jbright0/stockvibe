@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Text, View, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Text, View, StyleSheet, ScrollView, TextInput, Pressable, Image } from 'react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Screen from '../components/Screen';
 import { spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
@@ -12,7 +13,7 @@ interface ThematicCollection {
   id: string;
   title: string;
   subtitle: string;
-  image: string;
+  image: any; // ImageSourcePropType for require()
 }
 
 interface InsightItem {
@@ -35,6 +36,8 @@ export default function ExploreScreen() {
   const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const [bookmarkUpdateKey, setBookmarkUpdateKey] = useState(0); // Force re-render on bookmark changes
+  const [followedStocks, setFollowedStocks] = useState<string[]>([]);
+  const [followedSectors, setFollowedSectors] = useState<string[]>([]);
 
   // Mock data
   const thematicCollections: ThematicCollection[] = [
@@ -42,60 +45,213 @@ export default function ExploreScreen() {
       id: '1',
       title: 'Clean Energy',
       subtitle: 'Infrastructure & Renewables',
-      image: 'https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?w=400',
+      image: require('../../assets/thematic/Clean Energy - Infrastructure & Renewables.webp'),
     },
     {
       id: '2',
       title: 'Aging',
       subtitle: 'Healthcare',
-      image: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400',
-    },
-  ];
-
-  const insightFeed: InsightItem[] = [
-    {
-      id: '1',
-      companyName: 'ASML Holding',
-      ticker: 'ASML',
-      tag: 'Opportunity',
-      description: 'Dominant market share in EUV lithography systems essential for advanced chipmaking capabilities globally.',
-    },
-    {
-      id: '2',
-      companyName: 'Consumer Staples Select',
-      ticker: 'XLP',
-      tag: 'Risk',
-      description: 'Margin compression expected due to rising input costs and shifting consumer preference to generic brands.',
+      image: require('../../assets/thematic/Aging - Healthcare.webp'),
     },
     {
       id: '3',
-      companyName: 'Global Copper',
-      ticker: 'COPX',
-      tag: 'Neutral',
-      description: 'Demand remains steady, balanced by supply chain normalization in South American mining regions.',
+      title: 'Artificial Intelligence',
+      subtitle: 'Tech & Automation',
+      image: require('../../assets/thematic/Artificial Intelligence - Tech & Automation.webp'),
+    },
+    {
+      id: '4',
+      title: 'Digital Payments',
+      subtitle: 'FinTech Revolution',
+      image: require('../../assets/thematic/Digital Payments - FinTech Revolution.jpg'),
+    },
+    {
+      id: '5',
+      title: 'Electric Vehicles',
+      subtitle: 'Mobility Transformation',
+      image: require('../../assets/thematic/Electric Vehicles - Mobility Transformation.webp'),
+    },
+    {
+      id: '6',
+      title: 'Cloud Computing',
+      subtitle: 'Enterprise Digitalization',
+      image: require('../../assets/thematic/Cloud Computing - Enterprise Digitalization.jpg'),
+    },
+    {
+      id: '7',
+      title: 'Biotechnology',
+      subtitle: 'Medical Innovation',
+      image: require('../../assets/thematic/Biotechnology - Medical Innovation.webp'),
+    },
+    {
+      id: '8',
+      title: 'Cybersecurity',
+      subtitle: 'Digital Defense',
+      image: require('../../assets/thematic/Cybersecurity - Digital Defense.webp'),
+    },
+    {
+      id: '9',
+      title: 'E-Commerce',
+      subtitle: 'Retail Evolution',
+      image: require('../../assets/thematic/E-Commerce - Retail Evolution.jpg'),
+    },
+    {
+      id: '10',
+      title: 'Infrastructure',
+      subtitle: 'Smart Cities & Transport',
+      image: require('../../assets/thematic/Infrastructure - Smart Cities & Transport.jpg'),
+    },
+    {
+      id: '11',
+      title: 'Semiconductors',
+      subtitle: 'Chip Manufacturing',
+      image: require('../../assets/thematic/Semiconductors - Chip Manufacturing.webp'),
+    },
+    {
+      id: '12',
+      title: 'Sustainable Finance',
+      subtitle: 'ESG Investing',
+      image: require('../../assets/thematic/Sustainable Finance - ESG Investing.jpg'),
+    },
+    {
+      id: '13',
+      title: 'Defense',
+      subtitle: 'Vehicle, UAV & Drones',
+      image: require('../../assets/thematic/defense.jpg'),
     },
   ];
 
-  const sectorWatch: SectorItem[] = [
+  // All available stocks (matching what users can select)
+  const allStocks: InsightItem[] = [
     {
       id: '1',
-      sectorName: 'Automotive',
-      tag: 'Neutral',
-      description: 'EV transition costs impacting short-term free cash flow across legacy OEMs.',
+      companyName: 'Apple Inc.',
+      ticker: 'AAPL',
+      tag: 'Opportunity',
+      description: 'Strong services revenue growth and expanding market share in premium smartphone segment.',
     },
     {
       id: '2',
-      sectorName: 'Cloud Computing',
+      companyName: 'Microsoft Corp.',
+      ticker: 'MSFT',
       tag: 'Opportunity',
-      description: 'AI workload demand driving renewed capital expenditure in data center infrastructure.',
+      description: 'AI integration across cloud services driving renewed enterprise adoption and revenue growth.',
     },
     {
       id: '3',
-      sectorName: 'Commercial Real Estate',
-      tag: 'Risk',
-      description: 'Office vacancy rates in major metropolitan areas continue to pressure valuations.',
+      companyName: 'Berkshire Hathaway',
+      ticker: 'BRK.B',
+      tag: 'Neutral',
+      description: 'Diversified portfolio showing resilience, with insurance operations providing stable cash flow.',
+    },
+    {
+      id: '4',
+      companyName: 'Johnson & Johnson',
+      ticker: 'JNJ',
+      tag: 'Neutral',
+      description: 'Healthcare division remains strong, with pharmaceutical pipeline showing promising developments.',
+    },
+    {
+      id: '5',
+      companyName: 'Alphabet Inc.',
+      ticker: 'GOOGL',
+      tag: 'Opportunity',
+      description: 'Search advertising revenue stable, with cloud and AI initiatives gaining momentum.',
+    },
+    {
+      id: '6',
+      companyName: 'Amazon.com Inc.',
+      ticker: 'AMZN',
+      tag: 'Opportunity',
+      description: 'AWS growth accelerating, e-commerce margins improving with logistics optimization.',
     },
   ];
+
+  // All available sectors (matching what users can select)
+  const allSectors: SectorItem[] = [
+    {
+      id: '1',
+      sectorName: 'Technology',
+      tag: 'Opportunity',
+      description: 'AI and cloud computing driving renewed capital expenditure and enterprise software adoption.',
+    },
+    {
+      id: '2',
+      sectorName: 'Healthcare',
+      tag: 'Neutral',
+      description: 'Regulatory environment stable, with biotech innovation continuing to drive pipeline development.',
+    },
+    {
+      id: '3',
+      sectorName: 'Financial Services',
+      tag: 'Neutral',
+      description: 'Interest rate environment stabilizing, with credit quality remaining strong across major institutions.',
+    },
+    {
+      id: '4',
+      sectorName: 'Consumer Cyclical',
+      tag: 'Risk',
+      description: 'Consumer spending patterns shifting, with discretionary purchases showing signs of moderation.',
+    },
+    {
+      id: '5',
+      sectorName: 'Energy',
+      tag: 'Neutral',
+      description: 'Supply and demand dynamics balanced, with renewable energy transition continuing steadily.',
+    },
+    {
+      id: '6',
+      sectorName: 'Utilities',
+      tag: 'Neutral',
+      description: 'Regulated returns stable, with infrastructure investment supporting long-term growth.',
+    },
+    {
+      id: '7',
+      sectorName: 'Real Estate',
+      tag: 'Risk',
+      description: 'Commercial real estate facing headwinds from remote work trends and rising interest rates.',
+    },
+    {
+      id: '8',
+      sectorName: 'Industrials',
+      tag: 'Neutral',
+      description: 'Manufacturing activity steady, with supply chain normalization supporting operational efficiency.',
+    },
+  ];
+
+  // Load user interests from AsyncStorage
+  const loadUserInterests = useCallback(async () => {
+    try {
+      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
+      const interests = JSON.parse(interestsJson);
+      setFollowedStocks(interests.stocks || []);
+      setFollowedSectors(interests.sectors || []);
+    } catch (error) {
+      console.error('Error loading user interests:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUserInterests();
+  }, [loadUserInterests]);
+
+  // Refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadUserInterests();
+    }, [loadUserInterests])
+  );
+
+  // Filter stocks and sectors based on followed items
+  const filteredInsightFeed = useMemo(() => {
+    if (followedStocks.length === 0) return [];
+    return allStocks.filter(item => followedStocks.includes(item.ticker));
+  }, [followedStocks]);
+
+  const filteredSectorWatch = useMemo(() => {
+    if (followedSectors.length === 0) return [];
+    return allSectors.filter(item => followedSectors.includes(item.sectorName));
+  }, [followedSectors]);
 
 
   return (
@@ -124,17 +280,16 @@ export default function ExploreScreen() {
 
         {/* Thematic Collections */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>THEMATIC COLLECTIONS</Text>
-            <Pressable>
-              <Text style={[styles.viewAll, { color: theme.colors.primary }]}>View All</Text>
-            </Pressable>
-          </View>
+          <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>THEMATIC COLLECTIONS</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
             {thematicCollections.map((collection) => (
               <Pressable key={collection.id} style={[styles.collectionCard, { marginRight: spacing.md }]}>
-                <View style={[styles.collectionImageContainer, { backgroundColor: theme.colors.surface }]}>
-                  <Text style={styles.collectionImagePlaceholder}>🌍</Text>
+                <View style={styles.collectionImageContainer}>
+                  <Image 
+                    source={collection.image} 
+                    style={styles.collectionImage}
+                    resizeMode="cover"
+                  />
                 </View>
                 <View style={styles.collectionOverlay}>
                   <Text style={styles.collectionTitle}>{collection.title}</Text>
@@ -148,7 +303,14 @@ export default function ExploreScreen() {
         {/* Stock Watch */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>STOCK WATCH</Text>
-          {insightFeed.map((item) => {
+          {filteredInsightFeed.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                No followed stocks. Add stocks in Profile to see them here.
+              </Text>
+            </View>
+          ) : (
+            filteredInsightFeed.map((item) => {
             // Convert InsightItem to NewsItem format for bookmarking
             const newsItem: NewsItem = {
               title: `${item.companyName} - ${item.ticker}`,
@@ -165,7 +327,7 @@ export default function ExploreScreen() {
                 key={item.id} 
                 style={[styles.insightCard, { backgroundColor: theme.colors.surface }]}
                 onPress={() => {
-                  navigation.navigate('StockDetail', { stock: item.ticker });
+                  navigation.navigate('StockWatch', { stock: item.ticker });
                 }}
               >
                 <View style={styles.insightHeader}>
@@ -195,13 +357,21 @@ export default function ExploreScreen() {
                 <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
               </Pressable>
             );
-          })}
+            })
+          )}
         </View>
 
         {/* Sector Watch */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>SECTOR WATCH</Text>
-          {sectorWatch.map((item) => {
+          {filteredSectorWatch.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, { color: theme.colors.textSecondary }]}>
+                No followed sectors. Add sectors in Profile to see them here.
+              </Text>
+            </View>
+          ) : (
+            filteredSectorWatch.map((item) => {
             // Convert SectorItem to NewsItem format for bookmarking
             const newsItem: NewsItem = {
               title: item.sectorName,
@@ -218,7 +388,7 @@ export default function ExploreScreen() {
                 key={item.id} 
                 style={[styles.sectorCard, { backgroundColor: theme.colors.surface }]}
                 onPress={() => {
-                  navigation.navigate('SectorDetail', { sector: item.sectorName });
+                  navigation.navigate('SectorWatch', { sector: item.sectorName });
                 }}
               >
                 <View style={styles.sectorHeader}>
@@ -245,7 +415,8 @@ export default function ExploreScreen() {
                 <Text style={[styles.description, { color: theme.colors.textPrimary }]}>{item.description}</Text>
               </Pressable>
             );
-          })}
+            })
+          )}
         </View>
       </ScrollView>
     </Screen>
@@ -317,11 +488,10 @@ const styles = StyleSheet.create({
   collectionImageContainer: {
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  collectionImagePlaceholder: {
-    fontSize: 48,
+  collectionImage: {
+    width: '100%',
+    height: '100%',
   },
   collectionOverlay: {
     position: 'absolute',
@@ -405,5 +575,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  emptyState: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

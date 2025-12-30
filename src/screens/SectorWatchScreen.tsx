@@ -8,6 +8,8 @@ import BookmarkIcon from '../components/icons/BookmarkIcon';
 import { useTheme } from '../theme/ThemeContext';
 import { bookmarks } from '../store/bookmarks';
 import { NewsItem } from '../data/mockData';
+import { isProMember } from '../utils/membership';
+import UpgradeToProModal from '../components/UpgradeToProModal';
 
 interface DevelopmentItem {
   date: string;
@@ -27,15 +29,29 @@ interface ActiveDriver {
   description: string;
 }
 
-export default function SectorDetailScreen() {
+export default function SectorWatchScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { sector } = route.params;
-  const [isPremium, setIsPremium] = useState(false); // TODO: Connect to actual premium membership system
+  const [isPremium, setIsPremium] = useState(false);
   const [isAISummaryCollapsed, setIsAISummaryCollapsed] = useState(false);
   const [bookmarkStates, setBookmarkStates] = useState<Record<number, boolean>>({});
   const [selectedDevelopmentItem, setSelectedDevelopmentItem] = useState<DevelopmentItem | null>(null);
+  const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+
+  useEffect(() => {
+    loadMembershipStatus();
+  }, []);
+
+  const loadMembershipStatus = async () => {
+    try {
+      const isPro = await isProMember();
+      setIsPremium(isPro);
+    } catch (error) {
+      console.error('Error loading membership status:', error);
+    }
+  };
 
   // Mock sector data
   const sectorData: Record<string, { description: string; status: string; stocksAffected: StockAffected[] }> = {
@@ -341,8 +357,7 @@ export default function SectorDetailScreen() {
                 <Pressable 
                   style={[styles.upgradeButton, { backgroundColor: theme.colors.primary }]}
                   onPress={() => {
-                    // TODO: Navigate to upgrade/pricing screen
-                    console.log('Upgrade to Pro');
+                    setIsUpgradeModalVisible(true);
                   }}
                 >
                   <Text style={styles.upgradeButtonText}>Upgrade to Pro</Text>
@@ -452,6 +467,18 @@ export default function SectorDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Upgrade to Pro Modal */}
+      <UpgradeToProModal
+        visible={isUpgradeModalVisible}
+        onClose={() => setIsUpgradeModalVisible(false)}
+        onStartMembership={async () => {
+          // Membership is upgraded in the modal
+          setIsUpgradeModalVisible(false);
+          // Reload membership status to reflect the change
+          await loadMembershipStatus();
+        }}
+      />
     </Screen>
     </>
   );
@@ -710,14 +737,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
     marginBottom: spacing.md,
+    minHeight: 44,
   },
   upgradeButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
     textTransform: 'uppercase',
+    textAlign: 'center',
+    flexShrink: 0,
   },
   maybeLaterButton: {
     paddingVertical: spacing.sm,
@@ -804,3 +835,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+

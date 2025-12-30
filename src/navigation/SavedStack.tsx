@@ -1,8 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SavedScreen from '../screens/SavedScreen';
 import InsightScreen from '../screens/InsightScreen';
-import StockDetailScreen from '../screens/StockDetailScreen';
-import SectorDetailScreen from '../screens/SectorDetailScreen';
+import StockWatchScreen from '../screens/StockWatchScreen';
+import SectorWatchScreen from '../screens/SectorWatchScreen';
 import { useTheme } from '../theme/ThemeContext';
 import CustomBackButton from '../components/CustomBackButton';
 
@@ -43,16 +43,16 @@ export default function SavedStack() {
         }}
       />
       <Stack.Screen 
-        name="StockDetail" 
-        component={StockDetailScreen}
+        name="StockWatch" 
+        component={StockWatchScreen}
         options={{ 
           title: 'Stock History',
           headerLeft: () => <CustomBackButton />,
         }}
       />
       <Stack.Screen 
-        name="SectorDetail" 
-        component={SectorDetailScreen}
+        name="SectorWatch" 
+        component={SectorWatchScreen}
         options={{ 
           title: 'Sector History',
           headerLeft: () => <CustomBackButton />,
