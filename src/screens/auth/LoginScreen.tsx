@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
 import { setAuthenticated } from '../../utils/auth';
 
@@ -36,6 +37,12 @@ export default function LoginScreen() {
 
   const handleSignUp = () => {
     navigation.navigate('Register');
+  };
+
+  const handleViewOnboarding = async () => {
+    // Temporarily clear onboarding_complete to show onboarding
+    // RootNavigator will detect this change and switch to onboarding
+    await AsyncStorage.removeItem('onboarding_complete');
   };
 
   const togglePasswordVisibility = () => {
@@ -165,6 +172,16 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {/* View Onboarding Link */}
+          <Pressable
+            style={styles.viewOnboardingContainer}
+            onPress={handleViewOnboarding}
+          >
+            <Text style={[styles.viewOnboardingText, { color: theme.colors.textSecondary }]}>
+              View onboarding
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -281,6 +298,14 @@ const styles = StyleSheet.create({
   signUpLink: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  viewOnboardingContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  viewOnboardingText: {
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });
 

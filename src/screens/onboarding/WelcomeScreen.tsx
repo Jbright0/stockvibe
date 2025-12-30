@@ -8,8 +8,8 @@ export default function WelcomeScreen() {
   const navigation = useNavigation<any>();
 
   const handleGetStarted = () => {
-    // Navigate to Interest Selection (Step 2)
-    navigation.navigate('Interest');
+    // Navigate to Sector Selection (Step 2)
+    navigation.navigate('ChooseSector');
   };
 
   const handleLogIn = () => {

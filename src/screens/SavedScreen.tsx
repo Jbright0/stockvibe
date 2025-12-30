@@ -101,7 +101,12 @@ export default function SavedScreen() {
       <FlatList
         data={filteredItems}
         keyExtractor={(item, i) => `${item.title}-${item.stock}-${i}`}
-        renderItem={({ item }) => <SavedCard item={item} />}
+        renderItem={({ item }) => (
+          <SavedCard 
+            item={item} 
+            onUpdate={() => setBookmarkedItems([...bookmarks.getAll()])}
+          />
+        )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />

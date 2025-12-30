@@ -1,9 +1,13 @@
 import { NewsItem } from '../data/mockData';
 
-let bookmarksList: NewsItem[] = [];
+export interface BookmarkedItem extends NewsItem {
+  note?: string;
+}
+
+let bookmarksList: BookmarkedItem[] = [];
 
 export const bookmarks = {
-  getAll: (): NewsItem[] => {
+  getAll: (): BookmarkedItem[] => {
     return bookmarksList;
   },
   
@@ -40,6 +44,30 @@ export const bookmarks = {
     } else {
       bookmarks.add(item);
       return true;
+    }
+  },
+  
+  updateTag: (item: NewsItem, tag: string): void => {
+    const bookmark = bookmarksList.find(
+      (b) =>
+        b.title === item.title &&
+        b.stock === item.stock &&
+        b.source === item.source
+    );
+    if (bookmark) {
+      bookmark.tag = tag;
+    }
+  },
+  
+  updateNote: (item: NewsItem, note: string): void => {
+    const bookmark = bookmarksList.find(
+      (b) =>
+        b.title === item.title &&
+        b.stock === item.stock &&
+        b.source === item.source
+    );
+    if (bookmark) {
+      bookmark.note = note;
     }
   },
 };

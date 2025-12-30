@@ -353,7 +353,7 @@ export default function StockWatchScreen() {
                 }
               }}
             >
-              <Text style={styles.getInsightButtonText}>Get Insight</Text>
+              <Text style={styles.getInsightButtonText}>View Insight</Text>
             </Pressable>
           </View>
         </View>

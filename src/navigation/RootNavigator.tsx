@@ -43,6 +43,7 @@ export default function RootNavigator() {
     // Check onboarding and auth status periodically to catch updates
     intervalRef.current = setInterval(async () => {
       const isOnboarded = await checkOnboarding();
+      setOnboarded(isOnboarded);
       if (isOnboarded) {
         // Check auth status for returning users
         await checkAuth();

@@ -1,24 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
 
-const features = [
+const principles = [
   {
-    icon: '⚖️',
-    title: 'Facts vs. Opinions',
-    description: 'We separate raw financial data from analyst sentiment so you see the full picture.',
+    number: '1.',
+    iconType: 'document',
+    title: 'Evidence First',
+    description: 'News is the foundation. Insights never replace sources.',
   },
   {
-    icon: '✍️',
-    title: 'Human-Written',
-    description: 'No black-box algorithms. Our summaries are curated by experts to ensure clarity and context.',
+    number: '2.',
+    iconType: 'question',
+    title: 'Interpretation, Not Advice',
+    description: 'We explain developments — you decide.',
   },
   {
-    icon: '⏳',
-    title: 'Long-term Focus',
-    description: 'We ignore daily volatility. Our insights are calibrated for 3-5 year investment horizons.',
+    number: '3.',
+    iconType: 'calendar',
+    title: 'Long-Term Context',
+    description: 'Built for multi-year thinking, not daily noise.',
   },
 ];
 
@@ -26,30 +28,9 @@ export default function HowItWorksScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<any>();
 
-  const handleEnter = async () => {
-    // Get existing interests from previous screens
-    const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-    const interests = JSON.parse(interestsJson);
-    
-    // Ensure we have the complete interests data
-    if (!interests.stocks) {
-      interests.stocks = [];
-    }
-    if (!interests.sectors) {
-      interests.sectors = [];
-    }
-    
-    // Save user interests
-    await AsyncStorage.setItem(
-      'user_interests',
-      JSON.stringify(interests)
-    );
-    
-    // Mark onboarding as complete
-    await AsyncStorage.setItem('onboarding_complete', 'true');
-    
-    // RootNavigator will automatically detect the change and switch to MainTabs
-    // The interval check in RootNavigator will pick up the change within 500ms
+  const handleEnter = () => {
+    // Navigate to Create Account screen (Step 7)
+    navigation.navigate('CreateAccount');
   };
 
   return (
@@ -58,53 +39,72 @@ export default function HowItWorksScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Draggable Indicator */}
-        <View style={[styles.dragIndicator, { backgroundColor: theme.colors.border }]} />
+        {/* Content Card */}
+        <View style={[styles.contentCard, { backgroundColor: theme.colors.surface }]}>
+          {/* Drag Indicator */}
+          <View style={[styles.dragIndicator, { backgroundColor: theme.colors.border }]} />
 
-        {/* Title */}
-        <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-          How Insights Work
-        </Text>
+          {/* Title */}
+          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+            How StockVibe Helps You Think Clearly
+          </Text>
 
-        {/* Subtitle */}
-        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-          Investment Intelligence, Simplified. We separate signal from noise.
-        </Text>
+          {/* Subtitle */}
+          <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            Investment Intelligence, Simplified. We separate signal from noise.
+          </Text>
 
-        {/* Features List */}
-        <View style={styles.featuresContainer}>
-          {features.map((feature, index) => (
-            <View key={index} style={styles.feature}>
-              <View style={[styles.featureIconContainer, { backgroundColor: theme.colors.surface }]}>
-                <Text style={styles.featureIcon}>{feature.icon}</Text>
+          {/* Principles List */}
+          <View style={styles.principlesContainer}>
+            {principles.map((principle, index) => (
+              <View key={index} style={styles.principle}>
+                <View style={[styles.principleIconContainer, { backgroundColor: theme.colors.primary }]}>
+                  {principle.iconType === 'document' && (
+                    <View style={styles.iconInner}>
+                      <View style={styles.iconLine} />
+                      <View style={styles.iconLine} />
+                      <View style={styles.iconLine} />
+                    </View>
+                  )}
+                  {principle.iconType === 'question' && (
+                    <View style={styles.iconInner}>
+                      <Text style={styles.questionMark}>?</Text>
+                    </View>
+                  )}
+                  {principle.iconType === 'calendar' && (
+                    <View style={styles.iconInner}>
+                      <View style={styles.calendarTop} />
+                      <View style={styles.calendarBody}>
+                        <Text style={[styles.calendarDate, { color: theme.colors.primary }]}>24</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.principleContent}>
+                  <Text style={[styles.principleTitle, { color: theme.colors.textPrimary }]}>
+                    {principle.number} {principle.title}
+                  </Text>
+                  <Text style={[styles.principleDescription, { color: theme.colors.textSecondary }]}>
+                    {principle.description}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.featureContent}>
-                <Text style={[styles.featureTitle, { color: theme.colors.textPrimary }]}>
-                  {feature.title}
-                </Text>
-                <Text style={[styles.featureDescription, { color: theme.colors.textSecondary }]}>
-                  {feature.description}
-                </Text>
-              </View>
-            </View>
-          ))}
+            ))}
+          </View>
+
+          {/* Enter Button */}
+          <Pressable
+            style={[styles.enterButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handleEnter}
+          >
+            <Text style={styles.enterButtonText}>Enter Stock Vibe</Text>
+          </Pressable>
+
+          {/* Tagline */}
+          <Text style={[styles.tagline, { color: theme.colors.textMuted }]}>
+            NO NOISE. JUST DATA.
+          </Text>
         </View>
-
-        {/* Separator */}
-        <View style={[styles.separator, { backgroundColor: theme.colors.border }]} />
-
-        {/* Enter Stock Vibe Button */}
-        <Pressable
-          style={[styles.enterButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleEnter}
-        >
-          <Text style={styles.enterButtonText}>Enter Stock Vibe</Text>
-        </Pressable>
-
-        {/* Tagline */}
-        <Text style={[styles.tagline, { color: theme.colors.textMuted }]}>
-          NO NOISE. JUST DATA.
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -119,6 +119,10 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 32,
   },
+  contentCard: {
+    borderRadius: 16,
+    padding: 24,
+  },
   dragIndicator: {
     width: 40,
     height: 4,
@@ -127,51 +131,79 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    marginBottom: 12,
-    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     marginBottom: 32,
     lineHeight: 24,
-    textAlign: 'center',
   },
-  featuresContainer: {
+  principlesContainer: {
     marginBottom: 32,
     gap: 24,
   },
-  feature: {
+  principle: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  featureIconContainer: {
+  principleIconContainer: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  featureIcon: {
-    fontSize: 24,
+  iconInner: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  featureContent: {
+  iconLine: {
+    width: 16,
+    height: 2,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 3,
+  },
+  questionMark: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  calendarTop: {
+    width: 20,
+    height: 4,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+    marginBottom: 2,
+  },
+  calendarBody: {
+    width: 20,
+    height: 18,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarDate: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  principleContent: {
     flex: 1,
   },
-  featureTitle: {
+  principleTitle: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
   },
-  featureDescription: {
+  principleDescription: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  separator: {
-    height: 1,
-    marginBottom: 32,
   },
   enterButton: {
     paddingVertical: 16,
@@ -183,11 +215,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
   tagline: {
     fontSize: 12,
     textAlign: 'center',
     letterSpacing: 1,
     fontWeight: '600',
+    textTransform: 'uppercase',
   },
 });
