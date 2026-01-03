@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, SafeAreaView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
+import { userInterestsService } from '../../services/userInterests.service';
 
 const SECTORS = [
   'Technology',
@@ -33,8 +33,7 @@ export default function OnboardingSectors() {
   
   const loadExistingSectors = async () => {
     try {
-      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-      const interests = JSON.parse(interestsJson);
+      const interests = await userInterestsService.getInterests();
       if (interests.sectors && interests.sectors.length > 0) {
         setSelectedSectors(interests.sectors);
       }
@@ -52,25 +51,26 @@ export default function OnboardingSectors() {
   };
 
   const handleContinue = async () => {
-    // Save selected sectors
-    const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-    const interests = JSON.parse(interestsJson);
-    
-    await AsyncStorage.setItem(
-      'user_interests',
-      JSON.stringify({
-        ...interests,
-        sectors: selectedSectors,
-      })
-    );
-    
-    // Navigate based on context
-    if (fromProfile) {
-      // Navigate back to Profile
-      navigation.goBack();
-    } else {
-      // Navigate to next screen (stocks selection)
-      navigation.navigate('OnboardingStocks');
+    try {
+      // Update sectors using service
+      await userInterestsService.updateSectors(selectedSectors);
+      
+      // Navigate based on context
+      if (fromProfile) {
+        // Navigate back to Profile
+        navigation.goBack();
+      } else {
+        // Navigate to next screen (stocks selection)
+        navigation.navigate('OnboardingStocks');
+      }
+    } catch (error) {
+      console.error('Error saving sectors:', error);
+      // Still navigate even if save fails (graceful degradation)
+      if (fromProfile) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('OnboardingStocks');
+      }
     }
   };
 

@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
 import { setAuthenticated } from '../../utils/auth';
+import { authService } from '../../services/auth.service';
 
 export default function RegisterScreen() {
   const { theme } = useTheme();
@@ -22,16 +23,40 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreateAccount = async () => {
-    // Handle account creation logic here
-    console.log('Create account:', { fullName, email, password });
-    
-    // Mark as authenticated (replace with actual auth logic)
-    await setAuthenticated(true);
-    
-    // RootNavigator will detect the auth change and switch to MainTabs
-    // The interval check will pick up the change within 500ms
+    if (!email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await authService.register({ email, password });
+      await setAuthenticated(true);
+      
+      // RootNavigator will detect the auth change and switch to MainTabs
+      // The interval check will pick up the change within 500ms
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogIn = () => {
@@ -192,12 +217,25 @@ export default function RegisterScreen() {
             </View>
           </View>
 
+          {/* Error Message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text>
+            </View>
+          )}
+
           {/* Create Account Button */}
           <Pressable
-            style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
+            style={[
+              styles.createButton,
+              { backgroundColor: theme.colors.primary, opacity: loading ? 0.6 : 1 },
+            ]}
             onPress={handleCreateAccount}
+            disabled={loading}
           >
-            <Text style={styles.createButtonText}>Create Account</Text>
+            <Text style={styles.createButtonText}>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </Text>
           </Pressable>
 
           {/* Log In Link */}
@@ -305,6 +343,16 @@ const styles = StyleSheet.create({
   eyeIconHidden: {
     opacity: 0.4,
     textDecorationLine: 'line-through',
+  },
+  errorContainer: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   createButton: {
     paddingVertical: 16,

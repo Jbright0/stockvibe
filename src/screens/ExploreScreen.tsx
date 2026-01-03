@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Text, View, StyleSheet, ScrollView, TextInput, Pressable, Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Screen from '../components/Screen';
 import { spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/ThemeContext';
 import BookmarkIcon from '../components/icons/BookmarkIcon';
 import { bookmarks } from '../store/bookmarks';
 import { NewsItem } from '../data/mockData';
+import { userInterestsService } from '../services/userInterests.service';
 
 interface ThematicCollection {
   id: string;
@@ -219,11 +219,10 @@ export default function ExploreScreen() {
     },
   ];
 
-  // Load user interests from AsyncStorage
+  // Load user interests using service
   const loadUserInterests = useCallback(async () => {
     try {
-      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-      const interests = JSON.parse(interestsJson);
+      const interests = await userInterestsService.getInterests();
       setFollowedStocks(interests.stocks || []);
       setFollowedSectors(interests.sectors || []);
     } catch (error) {

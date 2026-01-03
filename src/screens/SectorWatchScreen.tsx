@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
+import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
@@ -10,6 +10,8 @@ import { bookmarks } from '../store/bookmarks';
 import { NewsItem } from '../data/mockData';
 import { isProMember } from '../utils/membership';
 import UpgradeToProModal from '../components/UpgradeToProModal';
+import { articlesApi } from '../api/articles';
+import { ArticleDTO } from '../types/api';
 
 interface DevelopmentItem {
   date: string;
@@ -39,10 +41,14 @@ export default function SectorWatchScreen() {
   const [bookmarkStates, setBookmarkStates] = useState<Record<number, boolean>>({});
   const [selectedDevelopmentItem, setSelectedDevelopmentItem] = useState<DevelopmentItem | null>(null);
   const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+  const [recentDevelopments, setRecentDevelopments] = useState<DevelopmentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadMembershipStatus();
-  }, []);
+    loadSectorData();
+  }, [sector]);
 
   const loadMembershipStatus = async () => {
     try {
@@ -50,6 +56,83 @@ export default function SectorWatchScreen() {
       setIsPremium(isPro);
     } catch (error) {
       console.error('Error loading membership status:', error);
+    }
+  };
+
+  // Convert ArticleDTO to DevelopmentItem format
+  const articleToDevelopmentItem = (article: ArticleDTO): DevelopmentItem => {
+    const date = new Date(article.publishedAt);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }).toUpperCase();
+
+    return {
+      date: formattedDate,
+      source: article.source.toUpperCase(),
+      headline: article.title,
+      content: article.summary,
+    };
+  };
+
+  const loadSectorData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await articlesApi.getSectorHistory(sector);
+      const developmentItems = data.articles.map(articleToDevelopmentItem);
+      setRecentDevelopments(developmentItems);
+
+      // Update bookmark states after loading
+      const states: Record<number, boolean> = {};
+      developmentItems.forEach((item, index) => {
+        const newsItem = developmentToNewsItem(item, index);
+        states[index] = bookmarks.isBookmarked(newsItem);
+      });
+      setBookmarkStates(states);
+    } catch (err) {
+      console.error('Error loading sector data from API:', err);
+      setError('Failed to load data. Using cached data.');
+      // Fallback to mock data
+      const mockDevelopments: DevelopmentItem[] = [
+        {
+          date: 'SEP 15, 2023',
+          source: 'WALL STREET JOURNAL',
+          headline: 'Executive leadership changes announced for 2024',
+          content: 'Long-time hardware chief is set to retire. The transition plan appears stable with an internal promotion filling the role, signaling continuity.',
+        },
+        {
+          date: 'SEP 12, 2023',
+          source: 'BLOOMBERG',
+          headline: 'Global chip sales hit record high in Q3',
+          content: 'Despite lingering supply constraints and logistical hurdles, semiconductor manufacturers report unprecedented quarterly revenue growth driven by AI demand.',
+        },
+        {
+          date: 'SEP 10, 2023',
+          source: 'REUTERS',
+          headline: 'Major GPU manufacturer delays next-gen processor',
+          content: 'Citing yield issues in advanced node production, the company pushes back launch timeline by two quarters, affecting supply chain partners.',
+        },
+        {
+          date: 'SEP 8, 2023',
+          source: 'FINANCIAL TIMES',
+          headline: 'EU finalizes semiconductor legislation',
+          content: 'New regulations aimed at boosting local production capacity by 2030 include significant subsidies for foundry construction and R&D investments.',
+        },
+      ];
+      setRecentDevelopments(mockDevelopments);
+      
+      // Update bookmark states for mock data
+      const states: Record<number, boolean> = {};
+      mockDevelopments.forEach((item, index) => {
+        const newsItem = developmentToNewsItem(item, index);
+        states[index] = bookmarks.isBookmarked(newsItem);
+      });
+      setBookmarkStates(states);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -123,33 +206,6 @@ export default function SectorWatchScreen() {
     },
   ];
 
-  // Mock recent developments
-  const recentDevelopments: DevelopmentItem[] = [
-    {
-      date: 'SEP 15, 2023',
-      source: 'WALL STREET JOURNAL',
-      headline: 'Executive leadership changes announced for 2024',
-      content: 'Long-time hardware chief is set to retire. The transition plan appears stable with an internal promotion filling the role, signaling continuity.',
-    },
-    {
-      date: 'SEP 12, 2023',
-      source: 'BLOOMBERG',
-      headline: 'Global chip sales hit record high in Q3',
-      content: 'Despite lingering supply constraints and logistical hurdles, semiconductor manufacturers report unprecedented quarterly revenue growth driven by AI demand.',
-    },
-    {
-      date: 'SEP 10, 2023',
-      source: 'REUTERS',
-      headline: 'Major GPU manufacturer delays next-gen processor',
-      content: 'Citing yield issues in advanced node production, the company pushes back launch timeline by two quarters, affecting supply chain partners.',
-    },
-    {
-      date: 'SEP 8, 2023',
-      source: 'FINANCIAL TIMES',
-      headline: 'EU finalizes semiconductor legislation',
-      content: 'New regulations aimed at boosting local production capacity by 2030 include significant subsidies for foundry construction and R&D investments.',
-    },
-  ];
 
   const getDriverColor = (type: string) => {
     switch (type) {
@@ -213,15 +269,6 @@ export default function SectorWatchScreen() {
     };
   };
 
-  // Check bookmark status for each development item
-  useEffect(() => {
-    const states: Record<number, boolean> = {};
-    recentDevelopments.forEach((item, index) => {
-      const newsItem = developmentToNewsItem(item, index);
-      states[index] = bookmarks.isBookmarked(newsItem);
-    });
-    setBookmarkStates(states);
-  }, []);
 
   const handleDevelopmentBookmarkPress = (item: DevelopmentItem, index: number, e: any) => {
     e.stopPropagation();
@@ -232,6 +279,18 @@ export default function SectorWatchScreen() {
       [index]: newBookmarkState,
     }));
   };
+
+  // Update bookmark states when recentDevelopments change
+  useEffect(() => {
+    if (recentDevelopments.length > 0) {
+      const states: Record<number, boolean> = {};
+      recentDevelopments.forEach((item, index) => {
+        const newsItem = developmentToNewsItem(item, index);
+        states[index] = bookmarks.isBookmarked(newsItem);
+      });
+      setBookmarkStates(states);
+    }
+  }, [recentDevelopments]);
 
   return (
     <>
@@ -379,8 +438,24 @@ export default function SectorWatchScreen() {
         {/* Recent Sector Developments Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Recent Developments</Text>
-          
-          {recentDevelopments.map((item, index) => (
+
+          {/* Error Message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={[styles.errorText, { color: '#F59E0B' }]}>{error}</Text>
+            </View>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading articles...</Text>
+            </View>
+          )}
+
+          {/* Development Items List */}
+          {!loading && recentDevelopments.map((item, index) => (
             <Pressable
               key={index}
               style={[styles.developmentCard, { backgroundColor: theme.colors.surface }]}
@@ -648,6 +723,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: spacing.md,
+  },
+  errorContainer: {
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: '#FEF3C7',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: 14,
   },
   stockAffectedCard: {
     flexDirection: 'row',

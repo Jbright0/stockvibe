@@ -10,8 +10,8 @@ import {
   Switch,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
+import { userInterestsService } from '../../services/userInterests.service';
 
 interface Stock {
   ticker: string;
@@ -47,8 +47,7 @@ export default function OnboardingStocks() {
   
   const loadExistingStocks = async () => {
     try {
-      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-      const interests = JSON.parse(interestsJson);
+      const interests = await userInterestsService.getInterests();
       if (interests.stocks && interests.stocks.length > 0) {
         setSelectedStocks(interests.stocks);
       }
@@ -66,26 +65,26 @@ export default function OnboardingStocks() {
   };
 
   const handleContinue = async () => {
-    // Get existing interests or create new
-    const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-    const interests = JSON.parse(interestsJson);
-    
-    // Update with selected stocks
-    await AsyncStorage.setItem(
-      'user_interests',
-      JSON.stringify({
-        ...interests,
-        stocks: selectedStocks,
-      })
-    );
-    
-    // Navigate based on context
-    if (fromProfile) {
-      // Navigate back to Profile
-      navigation.goBack();
-    } else {
-      // Navigate to next onboarding screen (HowItWorks)
-      navigation.navigate('HowItWorks');
+    try {
+      // Update stocks using service
+      await userInterestsService.updateStocks(selectedStocks);
+      
+      // Navigate based on context
+      if (fromProfile) {
+        // Navigate back to Profile
+        navigation.goBack();
+      } else {
+        // Navigate to next onboarding screen (HowItWorks)
+        navigation.navigate('HowItWorks');
+      }
+    } catch (error) {
+      console.error('Error saving stocks:', error);
+      // Still navigate even if save fails (graceful degradation)
+      if (fromProfile) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('HowItWorks');
+      }
     }
   };
 

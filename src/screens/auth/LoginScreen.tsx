@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../theme/ThemeContext';
 import { setAuthenticated } from '../../utils/auth';
+import { authService } from '../../services/auth.service';
 
 export default function LoginScreen() {
   const { theme } = useTheme();
@@ -19,16 +20,30 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSignIn = async () => {
-    // Handle sign in logic here
-    console.log('Sign in:', { email, password });
-    
-    // Mark as authenticated (replace with actual auth logic)
-    await setAuthenticated(true);
-    
-    // RootNavigator will detect the auth change and switch to MainTabs
-    // The interval check will pick up the change within 500ms
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await authService.login({ email, password });
+      await setAuthenticated(true);
+      
+      // RootNavigator will detect the auth change and switch to MainTabs
+      // The interval check will pick up the change within 500ms
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -261,6 +276,16 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     fontSize: 20,
+  },
+  errorContainer: {
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',

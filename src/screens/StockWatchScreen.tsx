@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal } from 'react-native';
+import { Text, StyleSheet, View, ScrollView, Pressable, Platform, StatusBar as RNStatusBar, Modal, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Screen from '../components/Screen';
@@ -10,6 +10,8 @@ import { bookmarks } from '../store/bookmarks';
 import { NewsItem } from '../data/mockData';
 import { isProMember } from '../utils/membership';
 import UpgradeToProModal from '../components/UpgradeToProModal';
+import { articlesApi } from '../api/articles';
+import { ArticleDTO } from '../types/api';
 
 interface RelatedNewsItem {
   date: string;
@@ -30,10 +32,14 @@ export default function StockWatchScreen() {
   const [selectedNewsItem, setSelectedNewsItem] = useState<RelatedNewsItem | null>(null);
   const [bookmarkUpdateKey, setBookmarkUpdateKey] = useState(0);
   const [isUpgradeModalVisible, setIsUpgradeModalVisible] = useState(false);
+  const [relatedNews, setRelatedNews] = useState<RelatedNewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadMembershipStatus();
-  }, []);
+    loadStockData();
+  }, [stock]);
 
   const loadMembershipStatus = async () => {
     try {
@@ -41,6 +47,79 @@ export default function StockWatchScreen() {
       setIsPremium(isPro);
     } catch (error) {
       console.error('Error loading membership status:', error);
+    }
+  };
+
+  // Convert ArticleDTO to RelatedNewsItem format
+  const articleToNewsItem = (article: ArticleDTO): RelatedNewsItem => {
+    const date = new Date(article.publishedAt);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    }).toUpperCase();
+
+    // Map sentiment to tag
+    const tagMap: Record<string, 'Risk' | 'Opportunity' | 'Neutral'> = {
+      positive: 'Opportunity',
+      negative: 'Risk',
+      neutral: 'Neutral',
+    };
+
+    return {
+      date: formattedDate,
+      tag: tagMap[article.sentiment] || 'Neutral',
+      headline: article.title,
+      summary: article.summary,
+      source: article.source.toUpperCase(),
+    };
+  };
+
+  const loadStockData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const stockName = stockData[stock]?.name || `${stock} Corporation`;
+      const data = await articlesApi.getStockHistory(stock, stockName);
+      const newsItems = data.articles.map(articleToNewsItem);
+      setRelatedNews(newsItems);
+    } catch (err) {
+      console.error('Error loading stock data from API:', err);
+      setError('Failed to load data. Using cached data.');
+      // Fallback to mock data
+      setRelatedNews([
+        {
+          date: 'OCT 12, 2023',
+          tag: 'Risk',
+          headline: 'Supply chain constraints reported in SE Asia assembly hubs',
+          summary: 'Production forecasts for the upcoming quarter have been lowered by 5% due to component shortages affecting key assembly partners in Vietnam and India.',
+          source: 'BLOOMBERG',
+        },
+        {
+          date: 'SEP 28, 2023',
+          tag: 'Opportunity',
+          headline: 'Services revenue surpasses expectations in Q3',
+          summary: 'The services division continues to show double-digit growth, reducing reliance on hardware cycles and improving overall gross margins significantly.',
+          source: 'REUTERS',
+        },
+        {
+          date: 'SEP 15, 2023',
+          tag: 'Neutral',
+          headline: 'Executive leadership changes announced for 2024',
+          summary: 'Long-time hardware chief is set to retire. The transition plan appears stable with an internal promotion filling the role, signaling continuity.',
+          source: 'WALL STREET JOURNAL',
+        },
+        {
+          date: 'AUG 04, 2023',
+          tag: 'Opportunity',
+          headline: 'Strategic partnership with AI chip manufacturer',
+          summary: 'A multi-year agreement secures priority access to next-gen silicon, potentially accelerating the roadmap for upcoming vision products.',
+          source: 'TECHCRUNCH',
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,38 +152,6 @@ export default function StockWatchScreen() {
     categories: ['Technology', 'USA', 'Large Cap'],
     sector: 'Technology',
   };
-
-  // Mock related news data
-  const relatedNews: RelatedNewsItem[] = [
-    {
-      date: 'OCT 12, 2023',
-      tag: 'Risk',
-      headline: 'Supply chain constraints reported in SE Asia assembly hubs',
-      summary: 'Production forecasts for the upcoming quarter have been lowered by 5% due to component shortages affecting key assembly partners in Vietnam and India.',
-      source: 'BLOOMBERG',
-    },
-    {
-      date: 'SEP 28, 2023',
-      tag: 'Opportunity',
-      headline: 'Services revenue surpasses expectations in Q3',
-      summary: 'The services division continues to show double-digit growth, reducing reliance on hardware cycles and improving overall gross margins significantly.',
-      source: 'REUTERS',
-    },
-    {
-      date: 'SEP 15, 2023',
-      tag: 'Neutral',
-      headline: 'Executive leadership changes announced for 2024',
-      summary: 'Long-time hardware chief is set to retire. The transition plan appears stable with an internal promotion filling the role, signaling continuity.',
-      source: 'WALL STREET JOURNAL',
-    },
-    {
-      date: 'AUG 04, 2023',
-      tag: 'Opportunity',
-      headline: 'Strategic partnership with AI chip manufacturer',
-      summary: 'A multi-year agreement secures priority access to next-gen silicon, potentially accelerating the roadmap for upcoming vision products.',
-      source: 'TECHCRUNCH',
-    },
-  ];
 
   return (
     <>
@@ -254,7 +301,23 @@ export default function StockWatchScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textPrimary }]}>Recent Developments</Text>
 
+          {/* Error Message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={[styles.errorText, { color: '#F59E0B' }]}>{error}</Text>
+            </View>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading articles...</Text>
+            </View>
+          )}
+
           {/* News Items List */}
+          {!loading && (
           <View style={styles.newsList}>
             {relatedNews.map((item, index) => {
               // Convert RelatedNewsItem to NewsItem format for bookmarking
@@ -301,6 +364,7 @@ export default function StockWatchScreen() {
               );
             })}
           </View>
+          )}
         </View>
 
       </ScrollView>
@@ -441,6 +505,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     marginBottom: spacing.md,
+  },
+  errorContainer: {
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: '#FEF3C7',
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.sm,
+    fontSize: 14,
   },
   aiSummaryCard: {
     padding: spacing.md,

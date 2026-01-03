@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Switch, View, Text, StyleSheet, Pressable, ScrollView, Modal } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Screen from '../../components/Screen';
 import { colors, spacing, radius } from '../../theme/tokens';
 import { setAuthenticated } from '../../utils/auth';
 import { useTheme } from '../../theme/ThemeContext';
 import { getMembershipStatus, MembershipType } from '../../utils/membership';
+import { userInterestsService } from '../../services/userInterests.service';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
@@ -93,8 +93,7 @@ export default function ProfileScreen() {
 
   const loadUserInterests = async () => {
     try {
-      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-      const interests = JSON.parse(interestsJson);
+      const interests = await userInterestsService.getInterests();
       setFollowedStocks(interests.stocks || []);
       setFollowedSectors(interests.sectors || []);
       if (interests.preferredCountry) {
@@ -110,12 +109,7 @@ export default function ProfileScreen() {
     setPreferredCountry(country);
     setIsCountryModalVisible(false);
     try {
-      const interestsJson = await AsyncStorage.getItem('user_interests') || '{}';
-      const interests = JSON.parse(interestsJson);
-      await AsyncStorage.setItem('user_interests', JSON.stringify({
-        ...interests,
-        preferredCountry: country,
-      }));
+      await userInterestsService.updatePreferredCountry(country);
     } catch (error) {
       console.error('Error saving preferred country:', error);
     }
